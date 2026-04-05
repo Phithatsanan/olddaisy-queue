@@ -24,7 +24,7 @@
       <p class="subtitle">ระบบรับคิวถ่ายรูป</p>
     </header>
 
-    <!-- ==================== JOIN SECTION ==================== -->
+    <!-- ==================== VIEW 1: JOIN ==================== -->
     <section id="joinSection" class="join-section">
       <div class="glass-card join-card">
         <h3>🎫 รับคิว</h3>
@@ -47,8 +47,8 @@
       </div>
     </section>
 
-    <!-- ==================== MY QUEUE SECTION ==================== -->
-    <section id="myQueueSection" class="my-queue-section hidden">
+    <!-- ==================== VIEW 2: WAITING ==================== -->
+    <section id="waitingSection" class="my-queue-section hidden">
       <!-- My Queue Card -->
       <div class="glass-card my-queue-card mb-3">
         <p class="my-queue-label">คิวของคุณ</p>
@@ -65,7 +65,7 @@
         </div>
       </div>
 
-      <!-- Warning Box (hidden by default) -->
+      <!-- Warning Box -->
       <div id="warningBox" class="warning-box mb-3 hidden">
         <div class="icon">⚠️</div>
         <div class="text">
@@ -106,9 +106,7 @@
       <!-- Queue List -->
       <section class="queue-list-section mb-3">
         <h3>📋 รายการคิว</h3>
-        <div id="queueListCustomer" class="queue-list-customer">
-          <!-- Rendered by JS -->
-        </div>
+        <div id="queueListCustomer" class="queue-list-customer"></div>
       </section>
 
       <!-- Cancel -->
@@ -118,15 +116,35 @@
         </button>
       </div>
     </section>
+
+    <!-- ==================== VIEW 3: NOW SERVING (after acknowledge) ==================== -->
+    <section id="servingSection" class="serving-section hidden">
+      <div class="glass-card serving-card">
+        <div class="serving-emoji">📸</div>
+        <h2 class="serving-title">กำลังถ่ายรูป</h2>
+        <div id="servingQueueNumber" class="serving-number">—</div>
+        <p class="serving-message">เชิญถ่ายรูปได้เลยนะคะ 🌸</p>
+        <div class="serving-progress">
+          <div id="servingProgressBar" class="serving-progress-bar"></div>
+        </div>
+        <p id="servingTimeLeft" class="serving-time">กำลังถ่าย...</p>
+      </div>
+
+      <div class="text-center mt-3">
+        <button id="btnNewQueue" class="btn btn-secondary">
+          🎫 รับคิวใหม่
+        </button>
+      </div>
+    </section>
   </div>
 
   <!-- ==================== CALLED OVERLAY ==================== -->
   <div id="calledOverlay" class="called-overlay hidden">
     <div class="called-card">
-      <div class="emoji">🔔</div>
+      <div class="emoji">🌼</div>
       <h2>ถึงคิวของคุณแล้ว!</h2>
       <div id="calledQueueNumber" class="queue-number-large">—</div>
-      <p>กรุณามาที่หน้าร้านเพื่อถ่ายรูป</p>
+      <p>เชิญมาที่หน้าร้านเพื่อถ่ายรูปได้เลยค่ะ</p>
       <button id="btnDismissCalled" class="btn btn-success btn-lg w-full">
         ✅ รับทราบ
       </button>

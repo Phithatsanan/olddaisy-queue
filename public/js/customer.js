@@ -7,16 +7,24 @@
 
   const $ = (id) => document.getElementById(id);
 
-  // DOM refs
+  // DOM refs — Views
+  const joinSection = $('joinSection');
+  const waitingSection = $('waitingSection');
+  const servingSection = $('servingSection');
+  const calledOverlay = $('calledOverlay');
+
+  // Connection
   const connectionStatus = $('connectionStatus');
   const connectionText = $('connectionText');
-  const joinSection = $('joinSection');
+
+  // Join
   const btnMinus = $('btnMinus');
   const btnPlus = $('btnPlus');
   const personCountEl = $('personCount');
   const timeEstimateEl = $('timeEstimate');
   const btnJoin = $('btnJoin');
-  const myQueueSection = $('myQueueSection');
+
+  // Waiting
   const myQueueNumber = $('myQueueNumber');
   const myGroupSize = $('myGroupSize');
   const myTotalMinutes = $('myTotalMinutes');
@@ -30,28 +38,63 @@
   const statDone = $('statDone');
   const queueListCustomer = $('queueListCustomer');
   const btnCancel = $('btnCancel');
-  const calledOverlay = $('calledOverlay');
+
+  // Serving
+  const servingQueueNumber = $('servingQueueNumber');
+  const servingProgressBar = $('servingProgressBar');
+  const servingTimeLeft = $('servingTimeLeft');
+  const btnNewQueue = $('btnNewQueue');
+
+  // Called overlay
   const calledQueueNumber = $('calledQueueNumber');
   const btnDismissCalled = $('btnDismissCalled');
 
   // ==================== State ====================
   let personCount = 1;
-  let myQueue = null;
+  let myQueue = null;     // { id, number, groupSize, totalMinutes, createdDate }
   let latestState = null;
-  let calledAcknowledged = false;
+  let currentView = 'join'; // 'join' | 'waiting' | 'serving'
   let isReconnecting = false;
 
-  // ==================== Server time sync ====================
+  // Server time sync
   let serverTimeOffset = 0;
+  function getServerNow() { return Date.now() + serverTimeOffset; }
 
-  function getServerNow() {
-    return Date.now() + serverTimeOffset;
+  // Tick countdown every second (client-side)
+  setInterval(() => {
+    if (latestState) {
+      if (currentView === 'waiting') updateCountdown();
+      if (currentView === 'serving') updateServingTimer();
+    }
+  }, 1000);
+
+  // ==================== Views ====================
+  function showView(view) {
+    currentView = view;
+    joinSection.classList.toggle('hidden', view !== 'join');
+    waitingSection.classList.toggle('hidden', view !== 'waiting');
+    servingSection.classList.toggle('hidden', view !== 'serving');
   }
 
-  // Tick every second to update queue countdown (client-side, no server calls)
-  setInterval(() => {
-    if (latestState) updateCountdown();
-  }, 1000);
+  function showJoinView() {
+    showView('join');
+  }
+
+  function showWaitingView() {
+    showView('waiting');
+    if (myQueue) {
+      myQueueNumber.textContent = myQueue.number;
+      myGroupSize.textContent = myQueue.groupSize;
+      myTotalMinutes.textContent = myQueue.totalMinutes;
+    }
+  }
+
+  function showServingView() {
+    showView('serving');
+    if (myQueue) {
+      servingQueueNumber.textContent = '#' + myQueue.number;
+    }
+  }
 
   // ==================== Socket.IO ====================
   const socket = io({
@@ -73,7 +116,11 @@
         isReconnecting = false;
         if (res && res.success) {
           myQueue = saved;
-          showMyQueueView();
+          if (res.status === 'serving') {
+            showServingView();
+          } else {
+            showWaitingView();
+          }
         } else {
           clearMyQueue();
           showJoinView();
@@ -88,21 +135,23 @@
   socket.on('disconnect', () => updateConnectionStatus(false));
 
   socket.on('queue:state', (state) => {
-    // Sync server time offset (once per state update, lightweight)
     if (state.serverTimestamp) {
       serverTimeOffset = state.serverTimestamp - Date.now();
     }
     latestState = state;
-    updateDisplay(state);
+    handleStateUpdate(state);
   });
 
   socket.on('queue:warning', (data) => {
-    showWarning(data.estimatedMinutes);
+    if (currentView === 'waiting') {
+      showWarning(data.estimatedMinutes);
+    }
   });
 
   socket.on('queue:called', (data) => {
-    if (!calledAcknowledged) {
-      showCalledOverlay(data.queueNumber);
+    if (currentView === 'waiting') {
+      calledQueueNumber.textContent = data.queueNumber;
+      calledOverlay.classList.remove('hidden');
     }
   });
 
@@ -112,119 +161,152 @@
     showToast('วันใหม่! คิวถูกรีเซ็ตอัตโนมัติ');
   });
 
-  // ==================== UI ====================
-  function updateConnectionStatus(connected) {
-    connectionStatus.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
-    connectionText.textContent = connected ? 'เชื่อมต่อแล้ว' : 'กำลังเชื่อมต่อ...';
-  }
+  // ==================== State Handler ====================
+  function handleStateUpdate(state) {
+    if (!state || !myQueue) {
+      // No queue → just update display
+      if (currentView === 'waiting' || currentView === 'serving') {
+        // Verify our queue still exists
+        if (myQueue) verifyMyQueue();
+      }
+      return;
+    }
 
-  function showJoinView() {
-    joinSection.classList.remove('hidden');
-    myQueueSection.classList.add('hidden');
-  }
+    // Check: am I in the waiting list?
+    const myIdx = state.waitingQueues.findIndex(q => q.id === myQueue.id);
 
-  function showMyQueueView() {
-    joinSection.classList.add('hidden');
-    myQueueSection.classList.remove('hidden');
-    if (myQueue) {
-      myQueueNumber.textContent = myQueue.number;
-      myGroupSize.textContent = myQueue.groupSize;
-      myTotalMinutes.textContent = myQueue.totalMinutes;
+    // Check: am I currently being served?
+    const amServing = state.currentQueue && state.currentQueue.id === myQueue.id;
+
+    // Check: am I gone (completed/cancelled)?
+    const amGone = myIdx === -1 && !amServing;
+
+    if (amGone) {
+      // Queue completed or cancelled
+      if (currentView === 'serving') {
+        // Was serving, now done → clear and go to join
+        clearMyQueue();
+        showJoinView();
+        showToast('ถ่ายรูปเสร็จเรียบร้อย! 🌸');
+      } else if (currentView === 'waiting') {
+        // Was waiting but got removed → should not happen normally
+        clearMyQueue();
+        showJoinView();
+      }
+      return;
+    }
+
+    if (amServing && currentView === 'waiting') {
+      // Just got called! Show overlay
+      calledQueueNumber.textContent = myQueue.number;
+      calledOverlay.classList.remove('hidden');
+    }
+
+    if (amServing && currentView === 'serving') {
+      updateServingTimer();
+    }
+
+    // Update waiting view stats
+    if (currentView === 'waiting') {
+      updateWaitingDisplay(state, myIdx);
     }
   }
 
-  function showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'toast-notification';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => toast.remove(), 300);
-    }, 4000);
-  }
-
-  function updateDisplay(state) {
-    if (!state) return;
-
+  // ==================== Waiting Display ====================
+  function updateWaitingDisplay(state, myIdx) {
     // Current serving
     if (state.currentQueue) {
       currentQueueDisplay.textContent = state.currentQueue.number;
       currentQueueDetails.textContent = `${state.currentQueue.groupSize} คน · ${state.currentQueue.totalMinutes} นาที`;
     } else {
       currentQueueDisplay.textContent = '—';
-      currentQueueDetails.textContent = 'ยังไม่มีคิว';
+      currentQueueDetails.textContent = 'ยังไม่เริ่ม';
     }
 
     // Stats
     statTotal.textContent = state.totalWaiting;
     statDone.textContent = state.completedToday;
 
-    // My position
-    if (myQueue) {
-      const myIdx = state.waitingQueues.findIndex(q => q.id === myQueue.id);
-      if (myIdx !== -1) {
-        statAhead.textContent = myIdx;
-      } else if (state.currentQueue && state.currentQueue.id === myQueue.id) {
-        statAhead.textContent = '0';
-      } else {
-        // Queue gone — verify
-        socket.emit('queue:check', { queueId: myQueue.id }, (res) => {
-          if (!res || !res.exists) {
-            clearMyQueue();
-            showJoinView();
-          }
-        });
+    if (myIdx !== -1) {
+      statAhead.textContent = myIdx;
+
+      // If first in line and no one is being served → show immediate ready
+      if (myIdx === 0 && !state.currentQueue) {
+        warningBox.classList.remove('hidden');
+        warningText.textContent = 'คิวถัดไปเป็นคิวของคุณ! เตรียมตัวได้เลย';
+        countdownTime.textContent = 'เตรียมตัว!';
+        countdownTime.classList.add('urgent');
       }
+    } else {
+      statAhead.textContent = '0';
     }
 
     renderQueueList(state);
     updateCountdown();
   }
 
-  // Client-side countdown (runs every second via clock tick, no server calls)
   function updateCountdown() {
-    if (!latestState || !myQueue) return;
+    if (!latestState || !myQueue || currentView !== 'waiting') return;
 
     const myIdx = latestState.waitingQueues.findIndex(q => q.id === myQueue.id);
+    if (myIdx === -1) return;
 
-    if (myIdx !== -1) {
-      // Calculate real-time estimate
-      let total = 0;
-      if (latestState.currentQueue && latestState.currentQueue.startedAt) {
-        const elapsedMin = (getServerNow() - latestState.currentQueue.startedAt) / 60000;
-        total += Math.max(0, latestState.currentQueue.totalMinutes - elapsedMin);
-      }
-      for (let i = 0; i < myIdx; i++) {
-        total += latestState.waitingQueues[i].totalMinutes;
-      }
-      const est = Math.ceil(total);
+    // Calculate real-time estimate
+    let total = 0;
+    if (latestState.currentQueue && latestState.currentQueue.startedAt) {
+      const elapsedMin = (getServerNow() - latestState.currentQueue.startedAt) / 60000;
+      total += Math.max(0, latestState.currentQueue.totalMinutes - elapsedMin);
+    }
+    for (let i = 0; i < myIdx; i++) {
+      total += latestState.waitingQueues[i].totalMinutes;
+    }
+    const est = Math.ceil(total);
 
-      if (est <= 0) {
-        countdownTime.textContent = 'ใกล้ถึงคิวแล้ว!';
-        countdownTime.classList.add('urgent');
-      } else {
-        const mins = Math.floor(total);
-        const secs = Math.floor((total - mins) * 60);
-        countdownTime.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
-        countdownTime.classList.toggle('urgent', est <= 10);
-      }
-
-      // Warning box
-      if (est <= 10) {
-        warningBox.classList.remove('hidden');
-        warningText.textContent = est <= 1
-          ? 'เตรียมตัวเลย! คิวของคุณกำลังจะถึง!'
-          : `อีกประมาณ ${est} นาทีจะถึงคิวของคุณ`;
-      } else {
-        warningBox.classList.add('hidden');
-      }
-
-    } else if (latestState.currentQueue && latestState.currentQueue.id === myQueue.id) {
-      countdownTime.textContent = 'ถึงคิวแล้ว!';
+    if (est <= 0) {
+      countdownTime.textContent = 'เตรียมตัว!';
       countdownTime.classList.add('urgent');
+    } else {
+      const mins = Math.floor(total);
+      const secs = Math.floor((total - mins) * 60);
+      countdownTime.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+      countdownTime.classList.toggle('urgent', est <= 5);
+    }
+
+    // Warning
+    if (est <= 10 || myIdx === 0) {
       warningBox.classList.remove('hidden');
-      warningText.textContent = '🎉 ถึงคิวของคุณแล้ว! กรุณามาที่หน้าร้าน';
+      if (myIdx === 0) {
+        warningText.textContent = est <= 1
+          ? 'คิวถัดไปเป็นของคุณ! เตรียมตัวเลย'
+          : `อีก ~${est} นาทีถึงคิวของคุณ เตรียมตัวได้เลย`;
+      } else {
+        warningText.textContent = `อีกประมาณ ${est} นาทีจะถึงคิวของคุณ`;
+      }
+    } else {
+      warningBox.classList.add('hidden');
+    }
+  }
+
+  // ==================== Serving Timer (gentle, not pressuring) ====================
+  function updateServingTimer() {
+    if (!latestState || !latestState.currentQueue || !latestState.currentQueue.startedAt) return;
+    if (latestState.currentQueue.id !== (myQueue && myQueue.id)) return;
+
+    const elapsedMs = getServerNow() - latestState.currentQueue.startedAt;
+    const allocatedMs = latestState.currentQueue.totalMinutes * 60 * 1000;
+
+    // Show gentle progress — NOT a countdown, just elapsed
+    const progress = Math.min(100, (elapsedMs / allocatedMs) * 100);
+    servingProgressBar.style.width = progress + '%';
+
+    const elapsedMins = Math.floor(elapsedMs / 60000);
+    const elapsedSecs = Math.floor((elapsedMs % 60000) / 1000);
+
+    // Gentle message, not pressuring
+    if (progress < 80) {
+      servingTimeLeft.textContent = `ถ่ายมาแล้ว ${elapsedMins}:${String(elapsedSecs).padStart(2, '0')} นาที`;
+    } else {
+      servingTimeLeft.textContent = `เกือบครบเวลาแล้ว 🌟`;
     }
   }
 
@@ -248,34 +330,53 @@
     warningText.textContent = `อีกประมาณ ${minutes} นาทีจะถึงคิวของคุณ`;
   }
 
-  function showCalledOverlay(queueNumber) {
-    calledQueueNumber.textContent = queueNumber;
-    calledOverlay.classList.remove('hidden');
+  // ==================== Verify queue exists ====================
+  function verifyMyQueue() {
+    if (!myQueue) return;
+    socket.emit('queue:check', { queueId: myQueue.id }, (res) => {
+      if (!res || !res.exists) {
+        clearMyQueue();
+        showJoinView();
+      }
+    });
+  }
+
+  // ==================== Toast ====================
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  function updateConnectionStatus(connected) {
+    connectionStatus.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
+    connectionText.textContent = connected ? 'เชื่อมต่อแล้ว' : 'กำลังเชื่อมต่อ...';
   }
 
   // ==================== Persistence ====================
   function saveMyQueue(queue) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(queue)); } catch (e) {}
   }
-
   function loadMyQueue() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
   }
-
   function clearMyQueue() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
     myQueue = null;
-    calledAcknowledged = false;
   }
 
   // ==================== Events ====================
   btnMinus.addEventListener('click', () => {
     if (personCount > 1) { personCount--; updatePersonCount(); }
   });
-
   btnPlus.addEventListener('click', () => {
     if (personCount < 20) { personCount++; updatePersonCount(); }
   });
@@ -296,7 +397,15 @@
       if (res && res.success) {
         myQueue = res.queue;
         saveMyQueue(myQueue);
-        showMyQueueView();
+        showWaitingView();
+
+        // If estimated wait time is 0 (first in line, no one serving)
+        if (res.queue.estimatedMinutes <= 0) {
+          warningBox.classList.remove('hidden');
+          warningText.textContent = 'คุณเป็นคิวแรก! เตรียมตัวได้เลย';
+          countdownTime.textContent = 'เตรียมตัว!';
+          countdownTime.classList.add('urgent');
+        }
       } else {
         showToast('ไม่สามารถรับคิวได้ กรุณาลองใหม่');
       }
@@ -323,27 +432,34 @@
     });
   });
 
+  // Called overlay → Acknowledge → Go to serving view
   btnDismissCalled.addEventListener('click', () => {
     calledOverlay.classList.add('hidden');
-    calledAcknowledged = true;
+    showServingView();
   });
 
-  // Re-verify queue when user comes back to tab
+  // New queue button (from serving view)
+  btnNewQueue.addEventListener('click', () => {
+    clearMyQueue();
+    showJoinView();
+    personCount = 1;
+    updatePersonCount();
+  });
+
+  // Re-verify when user comes back to tab
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && myQueue) {
-      socket.emit('queue:check', { queueId: myQueue.id }, (res) => {
-        if (!res || !res.exists) {
-          clearMyQueue();
-          showJoinView();
-          showToast('คิวของคุณหมดอายุแล้ว');
-        }
-      });
+      verifyMyQueue();
     }
   });
 
   // ==================== Init ====================
   const saved = loadMyQueue();
-  if (saved) { myQueue = saved; showMyQueueView(); }
-  else { showJoinView(); }
+  if (saved) {
+    myQueue = saved;
+    showWaitingView(); // Will be corrected by reconnect callback
+  } else {
+    showJoinView();
+  }
   updatePersonCount();
 })();
