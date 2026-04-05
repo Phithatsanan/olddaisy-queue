@@ -268,11 +268,13 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
 }
 
 .queue-table .q-time {
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .queue-table .q-actions {
@@ -399,6 +401,14 @@
   .queue-table {
     font-size: 0.9rem;
   }
+
+  .queue-table td, .queue-table th {
+    padding: 10px 8px;
+  }
+
+  .queue-table .q-people, .queue-table .q-time {
+    font-size: 0.8rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -409,5 +419,21 @@
 
   .admin-stats .stat-value {
     font-size: 1.6rem;
+  }
+  
+  .queue-table td, .queue-table th {
+    padding: 8px 4px;
+  }
+  
+  .queue-table .q-num {
+    font-size: 0.95rem;
+  }
+  
+  .queue-table .q-time {
+    font-size: 0.75rem;
+  }
+  
+  .queue-table .q-actions .btn {
+    padding: 6px 12px;
   }
 }
