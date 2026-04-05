@@ -32,7 +32,7 @@
 .admin-header h1 {
   font-size: 1.4rem;
   font-weight: 700;
-  color: #e8dcc8;
+  color: var(--text-primary);
 }
 
 .admin-header .subtitle {
@@ -62,7 +62,7 @@
 
 .pin-card h2 {
   margin-bottom: 8px;
-  color: #e8dcc8;
+  color: var(--text-primary);
 }
 
 .pin-card .desc {

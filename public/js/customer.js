@@ -57,6 +57,37 @@
   let currentView = 'join'; // 'join' | 'waiting' | 'serving'
   let isReconnecting = false;
   let hasSeenAlmostReadyPopup = false;
+  let notified10Min = false;
+  let notified2Min = false;
+  let notifiedCalled = false;
+
+  // ==================== Notifications ====================
+  let swRegistration = null;
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      swRegistration = reg;
+    }).catch(err => console.log('SW setup failed', err));
+  }
+
+  function requestPushPermission() {
+    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+  }
+
+  function sendSystemNotification(title, body) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      if (swRegistration) {
+        swRegistration.showNotification(title, {
+          body: body,
+          icon: '/img/logo.jpg',
+          vibrate: [200, 100, 200]
+        });
+      } else {
+        try { new Notification(title, { body: body, icon: '/img/logo.jpg' }); } catch(e){}
+      }
+    }
+  }
 
   // Server time sync
   let serverTimeOffset = 0;
@@ -156,6 +187,10 @@
       calledQueueNumber.textContent = data.queueNumber;
       calledOverlay.classList.remove('hidden');
       if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500, 200, 800]); // Long distinct vibration
+      if (!notifiedCalled) {
+        notifiedCalled = true;
+        sendSystemNotification('It is your turn!', `Please come to the storefront now. Queue #${data.queueNumber}`);
+      }
     }
   });
 
@@ -205,6 +240,10 @@
       calledQueueNumber.textContent = myQueue.number;
       calledOverlay.classList.remove('hidden');
       if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500, 200, 800]);
+      if (!notifiedCalled) {
+        notifiedCalled = true;
+        sendSystemNotification('It is your turn!', `Please come to the storefront now. Queue #${myQueue.number}`);
+      }
     }
 
     if (amServing && currentView === 'serving') {
@@ -287,14 +326,23 @@
       } else {
         warningText.textContent = `~${est} min until your queue.`;
       }
+
+      if (est <= 10 && est > 2 && !notified10Min) {
+        notified10Min = true;
+        sendSystemNotification('OLD DAISY CAFE', `Your queue is approaching. ~${est} mins left!`);
+      }
     } else {
       warningBox.classList.add('hidden');
     }
 
     // 2-Minute Popup logic (show exactly once if est <= 2)
-    if (est <= 2 && !hasSeenAlmostReadyPopup) {
-      // Don't show if the shop is completely empty and we are #1 (because we get auto-called)
-      if (!(myIdx === 0 && !latestState.currentQueue)) {
+    if (est <= 2) {
+      if (!notified2Min && !(myIdx === 0 && !latestState.currentQueue)) {
+        notified2Min = true;
+        sendSystemNotification('Almost Ready!', `Your queue is ~${est} mins away. Please prepare to enter!`);
+      }
+      
+      if (!hasSeenAlmostReadyPopup && !(myIdx === 0 && !latestState.currentQueue)) {
         hasSeenAlmostReadyPopup = true;
         almostReadyOverlay.classList.remove('hidden');
         if (window.navigator.vibrate) window.navigator.vibrate([200, 100, 200]);
@@ -391,6 +439,10 @@
   function clearMyQueue() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
     myQueue = null;
+    hasSeenAlmostReadyPopup = false;
+    notified10Min = false;
+    notified2Min = false;
+    notifiedCalled = false;
     try { window.history.replaceState(null, '', window.location.pathname); } catch(e) {}
   }
 
@@ -408,6 +460,10 @@
 
   btnJoin.addEventListener('click', () => {
     if (btnJoin.disabled) return;
+    
+    // Request push notification permission upon interaction
+    requestPushPermission();
+
     btnJoin.disabled = true;
     btnJoin.innerHTML = 'Receiving...';
 
