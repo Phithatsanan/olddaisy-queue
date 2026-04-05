@@ -163,7 +163,7 @@
   socket.on('queue:dayReset', () => {
     clearMyQueue();
     showJoinView();
-    showToast('วันใหม่! คิวถูกรีเซ็ตอัตโนมัติ');
+    showToast('New day! Queue has been reset.');
   });
 
   // ==================== State Handler ====================
@@ -192,7 +192,7 @@
         // Was serving, now done → clear and go to join
         clearMyQueue();
         showJoinView();
-        showToast('ถ่ายรูปเสร็จเรียบร้อย! 🌸');
+        showToast('Photo session completed!');
       } else if (currentView === 'waiting') {
         // Was waiting but got removed → should not happen normally
         clearMyQueue();
@@ -223,10 +223,10 @@
     // Current serving
     if (state.currentQueue) {
       currentQueueDisplay.textContent = state.currentQueue.number;
-      currentQueueDetails.textContent = `${state.currentQueue.groupSize} คน · ${state.currentQueue.totalMinutes} นาที`;
+      currentQueueDetails.textContent = `${state.currentQueue.groupSize} ppl · ${state.currentQueue.totalMinutes} min`;
     } else {
       currentQueueDisplay.textContent = '—';
-      currentQueueDetails.textContent = 'ยังไม่เริ่ม';
+      currentQueueDetails.textContent = 'Not started';
     }
 
     // Stats
@@ -239,8 +239,8 @@
       // If first in line and no one is being served → show immediate ready
       if (myIdx === 0 && !state.currentQueue) {
         warningBox.classList.remove('hidden');
-        warningText.textContent = 'คิวถัดไปเป็นคิวของคุณ! เตรียมตัวได้เลย';
-        countdownTime.textContent = 'เตรียมตัว!';
+        warningText.textContent = 'You are next! Get ready.';
+        countdownTime.textContent = 'Ready!';
         countdownTime.classList.add('urgent');
       }
     } else {
@@ -269,7 +269,7 @@
     const est = Math.ceil(total);
 
     if (est <= 0) {
-      countdownTime.textContent = 'เตรียมตัว!';
+      countdownTime.textContent = 'Ready!';
       countdownTime.classList.add('urgent');
     } else {
       const mins = Math.floor(total);
@@ -283,10 +283,10 @@
       warningBox.classList.remove('hidden');
       if (myIdx === 0) {
         warningText.textContent = est <= 1
-          ? 'คิวถัดไปเป็นของคุณ! เตรียมตัวเลย'
-          : `อีก ~${est} นาทีถึงคิวของคุณ เตรียมตัวได้เลย`;
+          ? 'You are next! Get ready.'
+          : `~${est} min until your queue. Get ready!`;
       } else {
-        warningText.textContent = `อีกประมาณ ${est} นาทีจะถึงคิวของคุณ`;
+        warningText.textContent = `~${est} min until your queue.`;
       }
     } else {
       warningBox.classList.add('hidden');
@@ -320,30 +320,30 @@
 
     // Gentle message, not pressuring
     if (progress < 80) {
-      servingTimeLeft.textContent = `ถ่ายมาแล้ว ${elapsedMins}:${String(elapsedSecs).padStart(2, '0')} นาที`;
+      servingTimeLeft.textContent = `Serving for ${elapsedMins}:${String(elapsedSecs).padStart(2, '0')} min`;
     } else {
-      servingTimeLeft.textContent = `เกือบครบเวลาแล้ว 🌟`;
+      servingTimeLeft.textContent = `Almost complete`;
     }
   }
 
   function renderQueueList(state) {
     if (!state.waitingQueues || state.waitingQueues.length === 0) {
-      queueListCustomer.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">ไม่มีคิวรออยู่ตอนนี้</div>';
+      queueListCustomer.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">No queues currently waiting</div>';
       return;
     }
     queueListCustomer.innerHTML = state.waitingQueues.map((q) => {
       const isMine = myQueue && q.id === myQueue.id;
       return `<div class="queue-item-customer ${isMine ? 'is-mine' : ''}">
-        <span class="q-number">${isMine ? '⭐ ' : ''}#${q.number}</span>
-        <span class="q-people">👥 ${q.groupSize} คน</span>
-        <span class="q-time">~${q.estimatedMinutes} นาที</span>
+        <span class="q-number">#${q.number}</span>
+        <span class="q-people">${q.groupSize} ppl</span>
+        <span class="q-time">~${q.estimatedMinutes} min</span>
       </div>`;
     }).join('');
   }
 
   function showWarning(minutes) {
     warningBox.classList.remove('hidden');
-    warningText.textContent = `อีกประมาณ ${minutes} นาทีจะถึงคิวของคุณ`;
+    warningText.textContent = `~${minutes} min until your queue.`;
   }
 
   // ==================== Verify queue exists ====================
@@ -371,7 +371,7 @@
 
   function updateConnectionStatus(connected) {
     connectionStatus.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
-    connectionText.textContent = connected ? 'เชื่อมต่อแล้ว' : 'กำลังเชื่อมต่อ...';
+    connectionText.textContent = connected ? 'Connected' : 'Connecting...';
   }
 
   // ==================== Persistence ====================
@@ -399,17 +399,17 @@
 
   function updatePersonCount() {
     personCountEl.textContent = personCount;
-    timeEstimateEl.textContent = `${personCount * MINUTES_PER_PERSON} นาที`;
+    timeEstimateEl.textContent = `${personCount * MINUTES_PER_PERSON} min`;
   }
 
   btnJoin.addEventListener('click', () => {
     if (btnJoin.disabled) return;
     btnJoin.disabled = true;
-    btnJoin.innerHTML = '⏳ กำลังรับคิว...';
+    btnJoin.innerHTML = 'Receiving...';
 
     socket.emit('queue:join', { groupSize: personCount }, (res) => {
       btnJoin.disabled = false;
-      btnJoin.innerHTML = '🎫 รับคิว';
+      btnJoin.innerHTML = 'Get Queue';
       if (res && res.success) {
         myQueue = res.queue;
         saveMyQueue(myQueue);
@@ -418,19 +418,19 @@
         // If estimated wait time is 0 (first in line, no one serving)
         if (res.queue.estimatedMinutes <= 0) {
           warningBox.classList.remove('hidden');
-          warningText.textContent = 'คุณเป็นคิวแรก! เตรียมตัวได้เลย';
-          countdownTime.textContent = 'เตรียมตัว!';
+          warningText.textContent = 'You are next! Get ready.';
+          countdownTime.textContent = 'Ready!';
           countdownTime.classList.add('urgent');
         }
       } else {
-        showToast('ไม่สามารถรับคิวได้ กรุณาลองใหม่');
+        showToast('Could not get queue. Please try again.');
       }
     });
 
     setTimeout(() => {
       if (btnJoin.disabled) {
         btnJoin.disabled = false;
-        btnJoin.innerHTML = '🎫 รับคิว';
+        btnJoin.innerHTML = 'Get Queue';
       }
     }, 5000);
   });
@@ -441,17 +441,17 @@
     
     if (!btnCancel.classList.contains('confirming')) {
       btnCancel.classList.add('confirming');
-      btnCancel.innerHTML = '⚠️ กดย้ำอีกครั้งเพื่อยืนยันการยกเลิก';
+      btnCancel.innerHTML = 'Tap again to confirm';
       cancelConfirmTimer = setTimeout(() => {
         btnCancel.classList.remove('confirming');
-        btnCancel.innerHTML = '❌ ยกเลิกคิวของฉัน';
+        btnCancel.innerHTML = 'Cancel My Queue';
       }, 3000);
       return;
     }
 
     clearTimeout(cancelConfirmTimer);
     btnCancel.classList.remove('confirming');
-    btnCancel.innerHTML = '❌ ยกเลิกคิวของฉัน';
+    btnCancel.innerHTML = 'Cancel My Queue';
 
     socket.emit('queue:cancel', { queueId: myQueue.id }, (res) => {
       if (res && res.success) {
@@ -479,17 +479,17 @@
   btnNewQueue.addEventListener('click', () => {
     if (!btnNewQueue.classList.contains('confirming')) {
       btnNewQueue.classList.add('confirming');
-      btnNewQueue.innerHTML = '⚠️ กดยืนยันว่าเสร็จแล้วอีกครั้ง';
+      btnNewQueue.innerHTML = 'Tap again to finish & clear';
       newQueueConfirmTimer = setTimeout(() => {
         btnNewQueue.classList.remove('confirming');
-        btnNewQueue.innerHTML = '🎫 รับคิวใหม่';
+        btnNewQueue.innerHTML = 'Done / Get New Queue';
       }, 3000);
       return;
     }
 
     clearTimeout(newQueueConfirmTimer);
     btnNewQueue.classList.remove('confirming');
-    btnNewQueue.innerHTML = '⏳ กำลังออกจากคิว...';
+    btnNewQueue.innerHTML = 'Clearing...';
 
     if (myQueue) {
       // Tell the server we are done, so it can call the next person
@@ -498,14 +498,14 @@
         showJoinView();
         personCount = 1;
         updatePersonCount();
-        btnNewQueue.innerHTML = '🎫 รับคิวใหม่';
+        btnNewQueue.innerHTML = 'Done / Get New Queue';
       });
     } else {
       clearMyQueue();
       showJoinView();
       personCount = 1;
       updatePersonCount();
-      btnNewQueue.innerHTML = '🎫 รับคิวใหม่';
+      btnNewQueue.innerHTML = 'Done / Get New Queue';
     }
   });
 

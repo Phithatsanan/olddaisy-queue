@@ -54,7 +54,7 @@
       const secs = totalSecs % 60;
 
       if (remainingMs <= 0) {
-        adminCurrentTimer.textContent = 'เกินเวลา';
+        adminCurrentTimer.textContent = 'Overtime';
         adminCurrentTimer.classList.add('overtime');
         adminCurrentTimer.classList.remove('urgent');
       } else {
@@ -101,7 +101,7 @@
     const pin = pinDigits.map(d => d.value).join('');
     if (pin.length < 4) return;
     btnLogin.disabled = true;
-    btnLogin.innerHTML = '⏳ กำลังตรวจสอบ...';
+    btnLogin.innerHTML = 'Verifying...';
     try {
       const res = await fetch(`/api/verify-pin?pin=${encodeURIComponent(pin)}`);
       const data = await res.json();
@@ -110,15 +110,15 @@
         try { sessionStorage.setItem(AUTH_KEY, 'true'); } catch (e) {}
         showDashboard();
       } else {
-        pinError.textContent = '❌ PIN ไม่ถูกต้อง';
+        pinError.textContent = 'Invalid PIN';
         pinDigits.forEach(d => { d.value = ''; });
         pinDigits[0].focus();
       }
     } catch (err) {
-      pinError.textContent = '⚠️ เชื่อมต่อไม่ได้';
+      pinError.textContent = 'Connection Error';
     }
     btnLogin.disabled = false;
-    btnLogin.innerHTML = '🔓 เข้าสู่ระบบ';
+    btnLogin.innerHTML = 'Login';
   });
 
   pinDigits[3].addEventListener('keydown', (e) => { if (e.key === 'Enter') btnLogin.click(); });
@@ -145,7 +145,7 @@
     if (latestState && latestState.serverDate) {
       const parts = latestState.serverDate.split('-');
       const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      adminDate.textContent = d.toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      adminDate.textContent = d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
   }
 
@@ -179,14 +179,14 @@
 
   socket.on('queue:dayReset', () => {
     if (isAuthenticated) {
-      showAdminToast('🔄 วันใหม่! คิวถูกรีเซ็ตอัตโนมัติ');
+      showAdminToast('New day! Queue reset automatically.');
       updateDate();
     }
   });
 
   function updateConnectionStatus(connected) {
     connectionStatus.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
-    connectionText.textContent = connected ? 'เชื่อมต่อแล้ว' : 'กำลังเชื่อมต่อ...';
+    connectionText.textContent = connected ? 'Connected' : 'Connecting...';
   }
 
   // ==================== Update Dashboard ====================
@@ -201,7 +201,7 @@
       currentBanner.classList.remove('hidden');
       noCurrentBanner.classList.add('hidden');
       adminCurrentNumber.textContent = '#' + state.currentQueue.number;
-      adminCurrentInfo.textContent = `👥 ${state.currentQueue.groupSize} คน · ${state.currentQueue.totalMinutes} นาที`;
+      adminCurrentInfo.textContent = `${state.currentQueue.groupSize} ppl · ${state.currentQueue.totalMinutes} min`;
     } else {
       currentBanner.classList.add('hidden');
       noCurrentBanner.classList.remove('hidden');
@@ -225,10 +225,10 @@
     queueTableBody.innerHTML = state.waitingQueues.map((q) => `
       <tr>
         <td><span class="q-num">#${q.number}</span></td>
-        <td><span class="q-people">👥 ${q.groupSize} คน</span></td>
-        <td class="q-time">${q.totalMinutes} นาที</td>
-        <td class="q-time">~${q.estimatedMinutes} นาที</td>
-        <td class="q-actions"><button class="btn btn-danger btn-sm" onclick="cancelQueue('${q.id}',${q.number})">❌</button></td>
+        <td><span class="q-people">${q.groupSize} ppl</span></td>
+        <td class="q-time">${q.totalMinutes} min</td>
+        <td class="q-time">~${q.estimatedMinutes} min</td>
+        <td class="q-actions"><button class="btn btn-danger btn-sm" onclick="cancelQueue('${q.id}',${q.number})">X</button></td>
       </tr>
     `).join('');
   }
@@ -259,7 +259,7 @@
   });
 
   window.cancelQueue = function (queueId, number) {
-    if (!confirm(`ยกเลิกคิว #${number}?`)) return;
+    if (!confirm(`Cancel queue #${number}?`)) return;
     socket.emit('queue:cancel', { queueId });
   };
 
@@ -271,7 +271,7 @@
       qrImageContainer.innerHTML = `<img src="${data.qrDataUrl}" alt="QR Code" />`;
       qrUrl.textContent = data.url;
     } catch (err) {
-      qrImageContainer.innerHTML = '<p style="color:var(--accent-red);">ไม่สามารถสร้าง QR Code ได้</p>';
+      qrImageContainer.innerHTML = '<p style="color:var(--accent-red);">Failed to generate QR Code</p>';
     }
   }
 

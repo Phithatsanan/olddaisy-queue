@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OldDaisy — รับคิวถ่ายรูป</title>
-  <meta name="description" content="ระบบรับคิวถ่ายรูปหน้าร้าน OldDaisy สแกน QR แล้วรับคิวได้ทันที">
+  <title>OldDaisy — Photo Queue</title>
+  <meta name="description" content="OldDaisy Photo Queue System">
   <meta name="theme-color" content="#0a0a1a">
   <link rel="stylesheet" href="/css/common.css">
   <link rel="stylesheet" href="/css/customer.css">
@@ -13,7 +13,7 @@
   <!-- Connection Status -->
   <div id="connectionStatus" class="connection-status connected">
     <span class="status-dot"></span>
-    <span id="connectionText">เชื่อมต่อแล้ว</span>
+    <span id="connectionText">Connected</span>
   </div>
 
   <div class="container">
@@ -21,28 +21,28 @@
     <header class="customer-header">
       <span class="logo">🌼</span>
       <h1>OldDaisy</h1>
-      <p class="subtitle">ระบบรับคิวถ่ายรูป</p>
+      <p class="subtitle">Photo Queue System</p>
     </header>
 
     <!-- ==================== VIEW 1: JOIN ==================== -->
     <section id="joinSection" class="join-section">
       <div class="glass-card join-card">
-        <h3>🎫 รับคิว</h3>
-        <p class="desc">เลือกจำนวนคน แล้วกดรับคิวได้เลย!</p>
+        <h3>Get a Queue</h3>
+        <p class="desc">Select group size and get your queue!</p>
 
         <div class="person-selector">
-          <button id="btnMinus" class="btn btn-icon" aria-label="ลดจำนวนคน">−</button>
+          <button id="btnMinus" class="btn btn-icon" aria-label="Decrease">&minus;</button>
           <span id="personCount" class="person-count">1</span>
-          <button id="btnPlus" class="btn btn-icon" aria-label="เพิ่มจำนวนคน">+</button>
+          <button id="btnPlus" class="btn btn-icon" aria-label="Increase">+</button>
         </div>
-        <p class="person-label">จำนวนคน</p>
+        <p class="person-label">Number of people</p>
 
         <div class="time-estimate">
-          ⏱️ เวลาถ่ายโดยประมาณ: <span id="timeEstimate">2 นาที</span>
+          Estimated wait time: <span id="timeEstimate">2 min</span>
         </div>
 
         <button id="btnJoin" class="btn btn-primary btn-lg w-full mt-2">
-          🎫 รับคิว
+          Get Queue
         </button>
       </div>
     </section>
@@ -51,16 +51,16 @@
     <section id="waitingSection" class="my-queue-section hidden">
       <!-- My Queue Card -->
       <div class="glass-card my-queue-card mb-3">
-        <p class="my-queue-label">คิวของคุณ</p>
-        <div id="myQueueNumber" class="my-queue-number">—</div>
+        <p class="my-queue-label">Your Queue</p>
+        <div id="myQueueNumber" class="my-queue-number">&mdash;</div>
         <div class="my-queue-info">
           <div class="info-item">
-            <div id="myGroupSize" class="info-value">—</div>
-            <div class="info-label">จำนวนคน</div>
+            <div id="myGroupSize" class="info-value">&mdash;</div>
+            <div class="info-label">People</div>
           </div>
           <div class="info-item">
-            <div id="myTotalMinutes" class="info-value">—</div>
-            <div class="info-label">นาที</div>
+            <div id="myTotalMinutes" class="info-value">&mdash;</div>
+            <div class="info-label">Min</div>
           </div>
         </div>
       </div>
@@ -69,21 +69,21 @@
       <div id="warningBox" class="warning-box mb-3 hidden">
         <div class="icon">⚠️</div>
         <div class="text">
-          <h4>เตรียมตัวได้เลย!</h4>
-          <p id="warningText">อีกไม่เกิน 10 นาทีจะถึงคิวของคุณ</p>
+          <h4>Get Ready!</h4>
+          <p id="warningText">Your queue is up in under 10 minutes</p>
         </div>
       </div>
 
       <!-- Countdown -->
       <div class="glass-card countdown mb-3">
-        <div id="countdownTime" class="time">— นาที</div>
-        <div class="time-label">เวลาโดยประมาณก่อนถึงคิว</div>
+        <div id="countdownTime" class="time">&mdash; Min</div>
+        <div class="time-label">Estimated time until your queue</div>
       </div>
 
       <!-- Current Serving -->
       <div class="glass-card current-serving mb-3">
-        <div class="label">🎬 กำลังให้บริการ</div>
-        <div id="currentQueueDisplay" class="number">—</div>
+        <div class="label">Now Serving</div>
+        <div id="currentQueueDisplay" class="number">&mdash;</div>
         <div id="currentQueueDetails" class="details"></div>
       </div>
 
@@ -91,28 +91,28 @@
       <div class="status-grid mb-3">
         <div class="glass-card stat-card">
           <div id="statAhead" class="stat-value gradient-warm">0</div>
-          <div class="stat-label">คิวข้างหน้า</div>
+          <div class="stat-label">Q's Ahead</div>
         </div>
         <div class="glass-card stat-card">
           <div id="statTotal" class="stat-value gradient-cool">0</div>
-          <div class="stat-label">คิวทั้งหมด</div>
+          <div class="stat-label">Total Q's</div>
         </div>
         <div class="glass-card stat-card">
           <div id="statDone" class="stat-value gradient-success">0</div>
-          <div class="stat-label">เสร็จแล้ว</div>
+          <div class="stat-label">Completed</div>
         </div>
       </div>
 
       <!-- Queue List -->
       <section class="queue-list-section mb-3">
-        <h3>📋 รายการคิว</h3>
+        <h3>Queue List</h3>
         <div id="queueListCustomer" class="queue-list-customer"></div>
       </section>
 
       <!-- Cancel -->
       <div class="cancel-section">
         <button id="btnCancel" class="btn btn-secondary btn-sm">
-          ❌ ยกเลิกคิวของฉัน
+          Cancel My Queue
         </button>
       </div>
     </section>
@@ -120,19 +120,18 @@
     <!-- ==================== VIEW 3: NOW SERVING (after acknowledge) ==================== -->
     <section id="servingSection" class="serving-section hidden">
       <div class="glass-card serving-card">
-        <div class="serving-emoji">📸</div>
-        <h2 class="serving-title">กำลังถ่ายรูป</h2>
-        <div id="servingQueueNumber" class="serving-number">—</div>
-        <p class="serving-message">เชิญถ่ายรูปได้เลยนะคะ 🌸</p>
+        <h2 class="serving-title">Taking Photos</h2>
+        <div id="servingQueueNumber" class="serving-number">&mdash;</div>
+        <p class="serving-message">Please proceed to take your photos 🌼</p>
         <div class="serving-progress">
           <div id="servingProgressBar" class="serving-progress-bar"></div>
         </div>
-        <p id="servingTimeLeft" class="serving-time">กำลังถ่าย...</p>
+        <p id="servingTimeLeft" class="serving-time">Serving...</p>
       </div>
 
       <div class="text-center mt-3">
         <button id="btnNewQueue" class="btn btn-secondary">
-          🎫 รับคิวใหม่
+          Done / Get New Queue
         </button>
       </div>
     </section>
@@ -141,11 +140,10 @@
   <!-- ==================== ALMOST READY OVERLAY (2 mins) ==================== -->
   <div id="almostReadyOverlay" class="called-overlay hidden" style="z-index: 998;">
     <div class="called-card">
-      <div class="emoji">⏳</div>
-      <h2>ใกล้ถึงคิวแล้ว!</h2>
-      <p>เหลือเวลาอีกไม่เกิน 2 นาที<br>กรุณาเตรียมตัวมาที่หน้าร้านได้เลยค่ะ 🌸</p>
+      <h2>Almost Ready!</h2>
+      <p>Your queue is up in under 2 minutes.<br>Please prepare to enter 🌼</p>
       <button id="btnDismissAlmostReady" class="btn btn-primary btn-lg w-full mt-2">
-        🆗 เข้าใจแล้ว
+        Got it
       </button>
     </div>
   </div>
@@ -154,11 +152,11 @@
   <div id="calledOverlay" class="called-overlay hidden">
     <div class="called-card">
       <div class="emoji">🌼</div>
-      <h2>ถึงคิวของคุณแล้ว!</h2>
-      <div id="calledQueueNumber" class="queue-number-large">—</div>
-      <p>เชิญมาที่หน้าร้านเพื่อถ่ายรูปได้เลยค่ะ</p>
+      <h2>It's Your Turn!</h2>
+      <div id="calledQueueNumber" class="queue-number-large">&mdash;</div>
+      <p>Please come to the storefront to take your photos!</p>
       <button id="btnDismissCalled" class="btn btn-success btn-lg w-full">
-        ✅ รับทราบ
+        Ready
       </button>
     </div>
   </div>
