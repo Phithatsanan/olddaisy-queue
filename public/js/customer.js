@@ -70,8 +70,14 @@
   }
 
   function requestPushPermission() {
-    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-      Notification.requestPermission();
+    if ('Notification' in window) {
+      if (Notification.permission === 'default' || Notification.permission === 'prompt') {
+        Notification.requestPermission().then(perm => {
+          if (perm === 'granted') {
+            sendSystemNotification('Notifications Enabled ✅', 'We will alert you when your queue is ready.');
+          }
+        });
+      }
     }
   }
 
@@ -328,8 +334,12 @@
       }
 
       if (est <= 10 && est > 2 && !notified10Min) {
-        notified10Min = true;
-        sendSystemNotification('OLD DAISY CAFE', `Your queue is approaching. ~${est} mins left!`);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          sendSystemNotification('OLD DAISY CAFE', `Your queue is approaching. ~${est} mins left!`);
+          notified10Min = true;
+        } else if ('Notification' in window && Notification.permission === 'denied') {
+          notified10Min = true;
+        }
       }
     } else {
       warningBox.classList.add('hidden');
@@ -338,8 +348,12 @@
     // 2-Minute Popup logic (show exactly once if est <= 2)
     if (est <= 2) {
       if (!notified2Min && !(myIdx === 0 && !latestState.currentQueue)) {
-        notified2Min = true;
-        sendSystemNotification('Almost Ready!', `Your queue is ~${est} mins away. Please prepare to enter!`);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          sendSystemNotification('Almost Ready!', `Your queue is ~${est} mins away. Please prepare to enter!`);
+          notified2Min = true;
+        } else if ('Notification' in window && Notification.permission === 'denied') {
+          notified2Min = true;
+        }
       }
       
       if (!hasSeenAlmostReadyPopup && !(myIdx === 0 && !latestState.currentQueue)) {
