@@ -23,6 +23,7 @@
   const btnMinus = $('btnMinus');
   const btnPlus = $('btnPlus');
   const personCountEl = $('personCount');
+  const customerNameInput = $('customerName');
   const btnJoin = $('btnJoin');
 
   // Waiting
@@ -481,7 +482,9 @@
     btnJoin.disabled = true;
     btnJoin.innerHTML = 'Receiving...';
 
-    socket.emit('queue:join', { groupSize: personCount }, (res) => {
+    const nameVal = customerNameInput ? customerNameInput.value.trim() : '';
+
+    socket.emit('queue:join', { groupSize: personCount, name: nameVal }, (res) => {
       btnJoin.disabled = false;
       btnJoin.innerHTML = 'Get Queue';
       if (res && res.success) {

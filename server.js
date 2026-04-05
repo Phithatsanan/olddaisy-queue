@@ -138,6 +138,7 @@ function buildPublicState() {
     id: q.id,
     number: q.number,
     groupSize: q.groupSize,
+    name: q.name || '',
     totalMinutes: q.totalMinutes,
     estimatedMinutes: calcEstimatedMinutes(i),
     status: q.status,
@@ -155,6 +156,7 @@ function buildPublicState() {
       id: state.currentQueue.id,
       number: state.currentQueue.number,
       groupSize: state.currentQueue.groupSize,
+      name: state.currentQueue.name || '',
       totalMinutes: state.currentQueue.totalMinutes,
       remainingMinutes: currentRemaining,
       startedAt: state.currentStartedAt,
@@ -309,13 +311,16 @@ io.on('connection', (socket) => {
   socket.emit('queue:state', buildPublicState());
 
   // ---------- Customer: Join ----------
-  socket.on('queue:join', ({ groupSize }, callback) => {
+  socket.on('queue:join', ({ groupSize, name }, callback) => {
     checkDailyReset();
     const size = Math.max(1, Math.min(20, parseInt(groupSize) || 1));
+    const customerName = name ? String(name).trim().substring(0, 20) : '';
+    
     const queue = {
       id: generateId(),
       number: state.nextQueueNumber++,
       groupSize: size,
+      name: customerName,
       totalMinutes: size * MINUTES_PER_PERSON,
       status: 'waiting',
       createdAt: Date.now(),
@@ -333,6 +338,7 @@ io.on('connection', (socket) => {
           id: queue.id,
           number: queue.number,
           groupSize: queue.groupSize,
+          name: queue.name,
           totalMinutes: queue.totalMinutes,
           estimatedMinutes: calcEstimatedMinutes(idx),
           createdDate: queue.createdDate,

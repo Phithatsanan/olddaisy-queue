@@ -51,6 +51,29 @@
   margin-bottom: 20px;
 }
 
+.input-field {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-thai);
+  font-size: 1rem;
+  transition: all var(--transition-base);
+  text-align: center;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  background: var(--bg-card);
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
 .person-selector {
   display: flex;
   align-items: center;
