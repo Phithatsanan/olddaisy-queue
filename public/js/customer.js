@@ -23,7 +23,6 @@
   const btnMinus = $('btnMinus');
   const btnPlus = $('btnPlus');
   const personCountEl = $('personCount');
-  const timeEstimateEl = $('timeEstimate');
   const btnJoin = $('btnJoin');
 
   // Waiting
@@ -405,7 +404,6 @@
 
   function updatePersonCount() {
     personCountEl.textContent = personCount;
-    timeEstimateEl.textContent = `${personCount * MINUTES_PER_PERSON} min`;
   }
 
   btnJoin.addEventListener('click', () => {

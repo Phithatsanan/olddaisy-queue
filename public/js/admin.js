@@ -234,18 +234,50 @@
   }
 
   // ==================== Actions ====================
+  let callNextTimer = null;
   btnCallNext.addEventListener('click', () => {
+    if (!btnCallNext.classList.contains('confirming')) {
+      btnCallNext.classList.add('confirming');
+      btnCallNext.innerHTML = 'Press again to Call';
+      callNextTimer = setTimeout(() => {
+        btnCallNext.classList.remove('confirming');
+        btnCallNext.innerHTML = 'Call Next';
+      }, 3000);
+      return;
+    }
+
+    clearTimeout(callNextTimer);
+    btnCallNext.classList.remove('confirming');
+    btnCallNext.innerHTML = 'Calling...';
     btnCallNext.disabled = true;
     socket.emit('queue:callNext', {}, (res) => {
       btnCallNext.disabled = false;
+      btnCallNext.innerHTML = 'Call Next';
       if (!res || !res.success) {
         if (res && res.message) showAdminToast(res.message);
       }
     });
   });
 
+  let completeTimer = null;
   btnComplete.addEventListener('click', () => {
+    if (!btnComplete.classList.contains('confirming')) {
+      btnComplete.classList.add('confirming');
+      btnComplete.innerHTML = 'Press again to Finish';
+      completeTimer = setTimeout(() => {
+        btnComplete.classList.remove('confirming');
+        btnComplete.innerHTML = 'Finish Turn';
+      }, 3000);
+      return;
+    }
+
+    clearTimeout(completeTimer);
+    btnComplete.classList.remove('confirming');
+    btnComplete.innerHTML = 'Finishing...';
+    btnComplete.disabled = true;
     socket.emit('queue:complete', {}, (res) => {
+      btnComplete.disabled = false;
+      btnComplete.innerHTML = 'Finish Turn';
       if (!res || !res.success) {
         if (res && res.message) showAdminToast(res.message);
       }
