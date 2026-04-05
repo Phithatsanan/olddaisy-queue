@@ -20,8 +20,13 @@
   gap: 12px;
 }
 
-.admin-header .logo {
-  font-size: 2rem;
+.admin-header .logo-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .admin-header h1 {
