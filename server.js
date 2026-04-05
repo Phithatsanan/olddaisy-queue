@@ -341,6 +341,14 @@ io.on('connection', (socket) => {
     }
     console.log(`📋 Queue #${queue.number} joined (${size} ppl, ~${queue.totalMinutes} min)`);
     broadcastState();
+
+    // Auto-call if no one is currently serving
+    if (!state.currentQueue && state.waitingQueues.length === 1) {
+      setTimeout(() => {
+        const next = advanceToNext();
+        if (next) broadcastState();
+      }, 1500);
+    }
   });
 
   // ---------- Cancel ----------
