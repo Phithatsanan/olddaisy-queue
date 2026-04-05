@@ -14,7 +14,8 @@
            (ua.indexOf("FBAV") > -1) || 
            (ua.indexOf("Instagram") > -1) || 
            (ua.indexOf("Line") > -1) ||
-           (ua.indexOf("MicroMessenger") > -1);
+           (ua.indexOf("MicroMessenger") > -1) ||
+           (ua.indexOf("wv") > -1);
   }
 
   const inAppBrowserOverlay = $('inAppBrowserOverlay');
@@ -409,7 +410,12 @@
 
   // ==================== Persistence ====================
   function saveMyQueue(queue) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(queue)); } catch (e) {}
+    try { 
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(queue)); 
+      if (queue && queue.id) {
+        window.history.replaceState(null, '', '?sq=' + queue.id);
+      }
+    } catch (e) {}
   }
   function loadMyQueue() {
     try {
@@ -420,6 +426,7 @@
   function clearMyQueue() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
     myQueue = null;
+    try { window.history.replaceState(null, '', window.location.pathname); } catch(e) {}
   }
 
   // ==================== Events ====================
@@ -550,12 +557,22 @@
   });
 
   // ==================== Init ====================
-  const saved = loadMyQueue();
-  if (saved) {
-    myQueue = saved;
-    showWaitingView(); // Will be corrected by reconnect callback
+  const urlParams = new URLSearchParams(window.location.search);
+  const sq = urlParams.get('sq');
+
+  if (sq) {
+    // Session migration from in-app browser
+    myQueue = { id: sq };
+    saveMyQueue(myQueue);
+    showWaitingView();
   } else {
-    showJoinView();
+    const saved = loadMyQueue();
+    if (saved) {
+      myQueue = saved;
+      showWaitingView(); // Will be corrected by reconnect callback
+    } else {
+      showJoinView();
+    }
   }
   updatePersonCount();
 })();
