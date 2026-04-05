@@ -249,7 +249,7 @@
   // ==================== Update Dashboard ====================
   function updateDashboard(state) {
     if (!state) return;
-    adminStatCurrent.textContent = state.currentQueue ? 'คิวที่ ' + state.currentQueue.number : '—';
+    adminStatCurrent.textContent = state.currentQueue ? '#' + state.currentQueue.number : '—';
     adminStatWaiting.textContent = state.totalWaiting;
     adminStatTime.textContent = state.totalEstimatedMinutes;
     adminStatDone.textContent = state.completedToday;
@@ -258,7 +258,7 @@
       currentBanner.classList.remove('hidden');
       noCurrentBanner.classList.add('hidden');
       const nameD = state.currentQueue.name ? ` <span style="font-size:0.5em;color:var(--text-secondary);font-weight:normal">(${escapeHtml(state.currentQueue.name)})</span>` : '';
-      adminCurrentNumber.innerHTML = 'คิวที่ ' + state.currentQueue.number + nameD;
+      adminCurrentNumber.innerHTML = '#' + state.currentQueue.number + nameD;
       adminCurrentInfo.textContent = `${state.currentQueue.groupSize} ppl · ${state.currentQueue.totalMinutes} min`;
     } else {
       currentBanner.classList.add('hidden');
@@ -290,7 +290,7 @@
       const nameT = q.name ? `<br><small style="color:var(--text-muted);font-weight:normal;font-size:0.8rem">(${escapeHtml(q.name)})</small>` : '';
       return `
       <tr>
-        <td><span class="q-num">คิวที่ ${q.number}</span>${nameT}</td>
+        <td><span class="q-num">#${q.number}</span>${nameT}</td>
         <td><span class="q-people">${q.groupSize} ppl</span></td>
         <td class="q-time">${q.totalMinutes}m</td>
         <td class="q-time">~${q.estimatedMinutes}m</td>
@@ -358,7 +358,7 @@
   });
 
   window.cancelQueue = function (queueId, number) {
-    if (!confirm(`ยกเลิกคิวที่ ${number}?`)) return;
+    if (!confirm(`Cancel queue #${number}?`)) return;
     socket.emit('queue:cancel', { queueId });
   };
 
