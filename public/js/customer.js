@@ -7,6 +7,39 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // ==================== In-App Browser Block ====================
+  function isInAppBrowser() {
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    return (ua.indexOf("FBAN") > -1) || 
+           (ua.indexOf("FBAV") > -1) || 
+           (ua.indexOf("Instagram") > -1) || 
+           (ua.indexOf("Line") > -1) ||
+           (ua.indexOf("MicroMessenger") > -1);
+  }
+
+  const inAppBrowserOverlay = $('inAppBrowserOverlay');
+  const btnCopyLink = $('btnCopyLink');
+
+  if (isInAppBrowser() && inAppBrowserOverlay && btnCopyLink) {
+    inAppBrowserOverlay.classList.remove('hidden');
+    btnCopyLink.addEventListener('click', () => {
+      const textArea = document.createElement("textarea");
+      textArea.value = window.location.href;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        btnCopyLink.innerHTML = 'Copied! Please paste in Safari/Chrome';
+      } catch (err) {
+        btnCopyLink.innerHTML = 'Could not copy link';
+      }
+      document.body.removeChild(textArea);
+      setTimeout(() => { btnCopyLink.innerHTML = 'Copy Link Manually'; }, 4000);
+    });
+    // Do not initialize the queue app if the browser is in-app
+    return;
+  }
+
   // DOM refs — Views
   const joinSection = $('joinSection');
   const waitingSection = $('waitingSection');
