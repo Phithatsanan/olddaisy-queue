@@ -27,6 +27,7 @@
 .admin-header h1 {
   font-size: 1.4rem;
   font-weight: 700;
+  color: #e8dcc8;
 }
 
 .admin-header .subtitle {
@@ -56,6 +57,7 @@
 
 .pin-card h2 {
   margin-bottom: 8px;
+  color: #e8dcc8;
 }
 
 .pin-card .desc {
@@ -177,6 +179,11 @@
 
 .current-banner .timer.overtime {
   color: var(--accent-red);
+}
+
+.current-banner .timer.urgent {
+  color: var(--accent-yellow);
+  animation: countdownPulse 1s ease-in-out infinite;
 }
 
 .no-current {

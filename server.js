@@ -25,13 +25,8 @@ function getBangkokDate() {
 }
 
 function getBangkokDateString() {
-  // Returns YYYY-MM-DD in Bangkok time
   const d = getBangkokDate();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function getBangkokTimestamp() {
-  return getBangkokDate().getTime();
 }
 
 // ==================== Queue State ====================
@@ -41,21 +36,20 @@ let state = {
   currentStartedAt: null,
   waitingQueues: [],
   completedToday: 0,
-  lastResetDate: null,    // YYYY-MM-DD of last auto-reset
-  serverStartedAt: null,  // When server started (for uptime display)
+  lastResetDate: null,
 };
+
+let autoAdvanceTimer = null; // setTimeout ref for auto-advance
 
 // ==================== Persistence ====================
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
 function saveState() {
   ensureDataDir();
   try {
-    const toSave = {
+    fs.writeFileSync(DATA_FILE, JSON.stringify({
       nextQueueNumber: state.nextQueueNumber,
       currentQueue: state.currentQueue,
       currentStartedAt: state.currentStartedAt,
@@ -63,10 +57,9 @@ function saveState() {
       completedToday: state.completedToday,
       lastResetDate: state.lastResetDate,
       savedAt: Date.now(),
-    };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(toSave, null, 2), 'utf-8');
+    }, null, 2), 'utf-8');
   } catch (err) {
-    console.error('⚠️ Failed to save state:', err.message);
+    console.error('⚠️ Save failed:', err.message);
   }
 }
 
@@ -75,7 +68,6 @@ function loadState() {
   try {
     if (fs.existsSync(DATA_FILE)) {
       const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-      // Only load if saved today (prevent loading stale data from previous day)
       const today = getBangkokDateString();
       if (raw.lastResetDate === today) {
         state.nextQueueNumber = raw.nextQueueNumber || 1;
@@ -84,16 +76,16 @@ function loadState() {
         state.waitingQueues = raw.waitingQueues || [];
         state.completedToday = raw.completedToday || 0;
         state.lastResetDate = raw.lastResetDate;
-        console.log(`📂 Loaded ${state.waitingQueues.length} waiting queues from today's data.`);
+        console.log(`📂 Loaded ${state.waitingQueues.length} queues from today.`);
       } else {
-        console.log(`📂 Found old data from ${raw.lastResetDate || 'unknown'}, starting fresh for ${today}.`);
+        console.log(`📂 Old data from ${raw.lastResetDate || '?'}, resetting.`);
         resetForNewDay();
       }
     } else {
       resetForNewDay();
     }
   } catch (err) {
-    console.error('⚠️ Failed to load state:', err.message);
+    console.error('⚠️ Load failed:', err.message);
     resetForNewDay();
   }
 }
@@ -101,27 +93,26 @@ function loadState() {
 // ==================== Daily Reset ====================
 function resetForNewDay() {
   const today = getBangkokDateString();
-  console.log(`🔄 Resetting queue for new day: ${today}`);
+  console.log(`🔄 Reset for: ${today}`);
   state.nextQueueNumber = 1;
   state.currentQueue = null;
   state.currentStartedAt = null;
   state.waitingQueues = [];
   state.completedToday = 0;
   state.lastResetDate = today;
+  clearAutoAdvanceTimer();
   saveState();
 }
 
 function checkDailyReset() {
   const today = getBangkokDateString();
   if (state.lastResetDate !== today) {
-    // Notify all clients before reset
-    io.emit('queue:dayReset', {
-      message: 'ระบบรีเซ็ตคิวสำหรับวันใหม่อัตโนมัติ',
-      newDate: today,
-    });
+    io.emit('queue:dayReset', { message: 'วันใหม่! ระบบรีเซ็ตคิวอัตโนมัติ', newDate: today });
     resetForNewDay();
     broadcastState();
+    return true;
   }
+  return false;
 }
 
 // ==================== Queue Helpers ====================
@@ -131,19 +122,14 @@ function generateId() {
 
 function calcEstimatedMinutes(queueIndex) {
   let total = 0;
-
-  // Time remaining for current serving queue
   if (state.currentQueue && state.currentStartedAt) {
     const elapsed = (Date.now() - state.currentStartedAt) / 60000;
     const remaining = Math.max(0, state.currentQueue.totalMinutes - elapsed);
     total += remaining;
   }
-
-  // Sum of queues before this index
   for (let i = 0; i < queueIndex; i++) {
     total += state.waitingQueues[i].totalMinutes;
   }
-
   return Math.ceil(total);
 }
 
@@ -171,6 +157,7 @@ function buildPublicState() {
       groupSize: state.currentQueue.groupSize,
       totalMinutes: state.currentQueue.totalMinutes,
       remainingMinutes: currentRemaining,
+      startedAt: state.currentStartedAt,
     } : null,
     waitingQueues: queues,
     totalWaiting: queues.length,
@@ -178,18 +165,75 @@ function buildPublicState() {
     completedToday: state.completedToday,
     minutesPerPerson: MINUTES_PER_PERSON,
     serverDate: getBangkokDateString(),
-    serverTime: getBangkokDate().toLocaleTimeString('th-TH', { timeZone: TZ }),
+    serverTimestamp: Date.now(),
     lastResetDate: state.lastResetDate,
   };
 }
 
-// ==================== Auto-Advance ====================
+// Broadcast current state to all clients — called ONLY on state changes
+function broadcastState() {
+  const publicState = buildPublicState();
+  io.emit('queue:state', publicState);
+
+  // Send targeted warnings
+  state.waitingQueues.forEach((q, i) => {
+    const est = calcEstimatedMinutes(i);
+    if (est <= WARNING_MINUTES && q.status === 'waiting') {
+      io.to(q.socketId).emit('queue:warning', {
+        queueNumber: q.number,
+        estimatedMinutes: est,
+      });
+    }
+  });
+}
+
+// ==================== Auto-Advance (Timer-based, not polling) ====================
+function clearAutoAdvanceTimer() {
+  if (autoAdvanceTimer) {
+    clearTimeout(autoAdvanceTimer);
+    autoAdvanceTimer = null;
+  }
+}
+
+function scheduleAutoAdvance() {
+  clearAutoAdvanceTimer();
+
+  if (!state.currentQueue || !state.currentStartedAt) return;
+
+  const elapsedMs = Date.now() - state.currentStartedAt;
+  const allocatedMs = state.currentQueue.totalMinutes * 60 * 1000;
+  const remainingMs = allocatedMs - elapsedMs;
+
+  if (remainingMs <= 0) {
+    // Already expired — advance now
+    advanceToNext();
+    broadcastState();
+    return;
+  }
+
+  // Schedule for when time runs out (+ 500ms buffer to avoid race)
+  autoAdvanceTimer = setTimeout(() => {
+    if (state.currentQueue && state.currentStartedAt) {
+      const elapsed = Date.now() - state.currentStartedAt;
+      const allocated = state.currentQueue.totalMinutes * 60 * 1000;
+      if (elapsed >= allocated) {
+        console.log(`⏰ Auto-advance triggered for queue #${state.currentQueue.number}`);
+        advanceToNext();
+        broadcastState();
+      }
+    }
+  }, remainingMs + 500);
+
+  console.log(`⏰ Auto-advance scheduled in ${Math.round(remainingMs / 1000)}s for queue #${state.currentQueue.number}`);
+}
+
 function advanceToNext() {
-  // Complete current if exists
+  clearAutoAdvanceTimer();
+
   if (state.currentQueue) {
     state.currentQueue.status = 'completed';
     state.completedToday++;
-    console.log(`✅ Queue #${state.currentQueue.number} auto-completed`);
+    console.log(`✅ Queue #${state.currentQueue.number} completed`);
   }
 
   if (state.waitingQueues.length === 0) {
@@ -205,54 +249,21 @@ function advanceToNext() {
   state.currentStartedAt = Date.now();
   saveState();
 
-  // Notify the customer it's their turn
   io.to(next.socketId).emit('queue:called', {
     queueNumber: next.number,
     message: `ถึงคิวของคุณแล้ว! คิวหมายเลข ${next.number}`,
   });
 
-  console.log(`📢 Auto-calling queue #${next.number}`);
+  console.log(`📢 Now serving queue #${next.number}`);
+  scheduleAutoAdvance();
   return next;
-}
-
-function checkAutoAdvance() {
-  if (!state.currentQueue || !state.currentStartedAt) return false;
-
-  const elapsedMs = Date.now() - state.currentStartedAt;
-  const allocatedMs = state.currentQueue.totalMinutes * 60 * 1000;
-
-  if (elapsedMs >= allocatedMs) {
-    advanceToNext();
-    return true;
-  }
-  return false;
-}
-
-function broadcastState() {
-  const publicState = buildPublicState();
-  io.emit('queue:state', publicState);
-
-  // Check for warnings (≤ 10 minutes)
-  state.waitingQueues.forEach((q, i) => {
-    const est = calcEstimatedMinutes(i);
-    if (est <= WARNING_MINUTES && q.status === 'waiting') {
-      io.to(q.socketId).emit('queue:warning', {
-        queueNumber: q.number,
-        estimatedMinutes: est,
-      });
-    }
-  });
 }
 
 // ==================== Static Files ====================
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 // ==================== REST API ====================
-
-// QR Code endpoint — uses public URL from headers or BASE_URL env
 app.get('/api/qr', async (req, res) => {
   try {
     let url;
@@ -264,8 +275,7 @@ app.get('/api/qr', async (req, res) => {
       url = `${proto}://${host}`;
     }
     const qrDataUrl = await QRCode.toDataURL(url, {
-      width: 400,
-      margin: 2,
+      width: 400, margin: 2,
       color: { dark: '#1a1a2e', light: '#ffffff' },
     });
     res.json({ url, qrDataUrl });
@@ -274,7 +284,6 @@ app.get('/api/qr', async (req, res) => {
   }
 });
 
-// Admin PIN verification
 app.get('/api/verify-pin', (req, res) => {
   const pin = req.query.pin;
   if (pin === ADMIN_PIN) {
@@ -284,7 +293,6 @@ app.get('/api/verify-pin', (req, res) => {
   }
 });
 
-// Health check (keeps Render from sleeping if pinged)
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -297,17 +305,12 @@ app.get('/api/health', (req, res) => {
 // ==================== Socket.IO ====================
 io.on('connection', (socket) => {
   console.log(`🔌 Connected: ${socket.id}`);
-
-  // Check daily reset on each connection
   checkDailyReset();
-
-  // Send initial state
   socket.emit('queue:state', buildPublicState());
 
-  // ---------- Customer: Join Queue ----------
+  // ---------- Customer: Join ----------
   socket.on('queue:join', ({ groupSize }, callback) => {
     checkDailyReset();
-
     const size = Math.max(1, Math.min(20, parseInt(groupSize) || 1));
     const queue = {
       id: generateId(),
@@ -319,13 +322,10 @@ io.on('connection', (socket) => {
       createdDate: getBangkokDateString(),
       socketId: socket.id,
     };
-
     state.waitingQueues.push(queue);
     saveState();
 
     const idx = state.waitingQueues.length - 1;
-    const est = calcEstimatedMinutes(idx);
-
     if (callback) {
       callback({
         success: true,
@@ -334,17 +334,16 @@ io.on('connection', (socket) => {
           number: queue.number,
           groupSize: queue.groupSize,
           totalMinutes: queue.totalMinutes,
-          estimatedMinutes: est,
+          estimatedMinutes: calcEstimatedMinutes(idx),
           createdDate: queue.createdDate,
         },
       });
     }
-
-    console.log(`📋 Queue #${queue.number} joined (${size} people, ~${queue.totalMinutes} min)`);
+    console.log(`📋 Queue #${queue.number} joined (${size} ppl, ~${queue.totalMinutes} min)`);
     broadcastState();
   });
 
-  // ---------- Customer/Admin: Cancel Queue ----------
+  // ---------- Cancel ----------
   socket.on('queue:cancel', ({ queueId }, callback) => {
     const idx = state.waitingQueues.findIndex(q => q.id === queueId);
     if (idx !== -1) {
@@ -359,18 +358,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ---------- Admin: Call Next Queue (manual skip/advance) ----------
+  // ---------- Admin: Call Next (manual skip) ----------
   socket.on('queue:callNext', (data, callback) => {
     checkDailyReset();
-
     if (state.waitingQueues.length === 0 && !state.currentQueue) {
       if (callback) callback({ success: false, message: 'ไม่มีคิวที่รออยู่' });
       return;
     }
-
     const next = advanceToNext();
     if (next) {
-      console.log(`📢 Admin manually called queue #${next.number}`);
       if (callback) callback({ success: true, queue: next });
     } else {
       if (callback) callback({ success: false, message: 'ไม่มีคิวถัดไป' });
@@ -378,12 +374,11 @@ io.on('connection', (socket) => {
     broadcastState();
   });
 
-  // ---------- Admin: Complete Current Queue (finish early) ----------
+  // ---------- Admin: Complete (finish early) ----------
   socket.on('queue:complete', (data, callback) => {
     if (state.currentQueue) {
-      // Complete current and auto-advance to next
       const next = advanceToNext();
-      console.log('✅ Admin completed queue early' + (next ? `, auto-called #${next.number}` : ''));
+      console.log('✅ Admin finished early' + (next ? `, now #${next.number}` : ''));
       if (callback) callback({ success: true });
       broadcastState();
     } else {
@@ -391,7 +386,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ---------- Admin: Reset All Queues ----------
+  // ---------- Admin: Reset ----------
   socket.on('queue:reset', (data, callback) => {
     state.nextQueueNumber = 1;
     state.currentQueue = null;
@@ -399,44 +394,37 @@ io.on('connection', (socket) => {
     state.waitingQueues = [];
     state.completedToday = 0;
     state.lastResetDate = getBangkokDateString();
+    clearAutoAdvanceTimer();
     saveState();
     console.log('🔄 All queues reset by admin');
     if (callback) callback({ success: true });
     broadcastState();
   });
 
-  // ---------- Customer: Reconnect (reopen browser) ----------
+  // ---------- Customer: Reconnect ----------
   socket.on('queue:reconnect', ({ queueId, createdDate }, callback) => {
     const today = getBangkokDateString();
-
-    // If the queue is from a different day, it's stale
     if (createdDate && createdDate !== today) {
-      if (callback) callback({ success: false, reason: 'stale', message: 'คิวจากวันก่อน กรุณารับคิวใหม่' });
+      if (callback) callback({ success: false, reason: 'stale' });
       return;
     }
-
-    // Look in waiting queues
     const q = state.waitingQueues.find(q => q.id === queueId);
     if (q) {
-      q.socketId = socket.id; // Update socket for notifications
+      q.socketId = socket.id;
       saveState();
       if (callback) callback({ success: true, queue: q, status: 'waiting' });
       return;
     }
-
-    // Check if currently being served
     if (state.currentQueue && state.currentQueue.id === queueId) {
       state.currentQueue.socketId = socket.id;
       saveState();
       if (callback) callback({ success: true, queue: state.currentQueue, status: 'serving' });
       return;
     }
-
-    // Not found
-    if (callback) callback({ success: false, reason: 'not_found', message: 'ไม่พบคิว อาจถูกยกเลิกหรือเสร็จแล้ว' });
+    if (callback) callback({ success: false, reason: 'not_found' });
   });
 
-  // ---------- Customer: Check queue validity ----------
+  // ---------- Customer: Check ----------
   socket.on('queue:check', ({ queueId }, callback) => {
     const inWaiting = state.waitingQueues.find(q => q.id === queueId);
     const isCurrent = state.currentQueue && state.currentQueue.id === queueId;
@@ -453,43 +441,28 @@ io.on('connection', (socket) => {
   });
 });
 
-// ==================== Periodic Tasks ====================
+// ==================== Periodic: Daily reset check only (every 60s) ====================
+setInterval(() => { checkDailyReset(); }, 60000);
 
-// Every 5 seconds: check auto-advance + broadcast state
-setInterval(() => {
-  checkAutoAdvance();
-  broadcastState();
-}, 5000);
-
-// Check for daily reset every minute
-setInterval(() => {
-  checkDailyReset();
-}, 60000);
-
-// ==================== Start Server ====================
+// ==================== Start ====================
 loadState();
-state.serverStartedAt = Date.now();
+scheduleAutoAdvance(); // Resume timer if server restarted mid-queue
 
 server.listen(PORT, '0.0.0.0', () => {
   const interfaces = os.networkInterfaces();
   let localIP = 'localhost';
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        localIP = iface.address;
-        break;
-      }
+      if (iface.family === 'IPv4' && !iface.internal) { localIP = iface.address; break; }
     }
   }
   console.log('');
-  console.log('╔══════════════════════════════════════════════╗');
-  console.log('║   🌼 OldDaisy Queue System Started!          ║');
-  console.log('╠══════════════════════════════════════════════╣');
-  console.log(`║  🌐 Local:    http://localhost:${PORT}         ║`);
-  console.log(`║  📱 Network:  http://${localIP}:${PORT}    ║`);
-  console.log(`║  🔧 Admin:    http://localhost:${PORT}/admin   ║`);
-  console.log(`║  📅 Date:     ${getBangkokDateString()} (Bangkok)   ║`);
-  console.log(`║  🔑 PIN:      ${ADMIN_PIN}                          ║`);
-  console.log('╚══════════════════════════════════════════════╝');
+  console.log('╔════════════════════════════════════════════════╗');
+  console.log('║   🌼 OldDaisy Queue System                     ║');
+  console.log('╠════════════════════════════════════════════════╣');
+  console.log(`║  🌐 http://localhost:${PORT}                      ║`);
+  console.log(`║  📱 http://${localIP}:${PORT}                 ║`);
+  console.log(`║  📅 ${getBangkokDateString()} (Bangkok)              ║`);
+  console.log('╚════════════════════════════════════════════════╝');
   console.log('');
 });
