@@ -53,10 +53,11 @@
 
   // ==================== State ====================
   let personCount = 1;
-  let myQueue = null;     // { id, number, groupSize, totalMinutes, createdDate }
+  let myQueue = null;     // { id, number, groupSize, totalMinutes, createdDate, name }
   let latestState = null;
-  let currentView = 'join'; // 'join' | 'waiting' | 'serving'
+  let currentView = 'loading'; // 'loading' | 'join' | 'waiting' | 'serving'
   let isReconnecting = false;
+  let reconnectDone = false; // Track whether reconnect flow has completed
   let hasSeenAlmostReadyPopup = false;
   let notified10Min = false;
   let notified2Min = false;
@@ -124,17 +125,25 @@
   function showWaitingView() {
     showView('waiting');
     if (myQueue) {
-      myQueueNumber.textContent = myQueue.number;
-      myGroupSize.textContent = myQueue.groupSize;
-      myTotalMinutes.textContent = myQueue.totalMinutes;
+      myQueueNumber.textContent = myQueue.number || '—';
+      myGroupSize.textContent = myQueue.groupSize || '—';
+      myTotalMinutes.textContent = myQueue.totalMinutes || '—';
     }
   }
 
   function showServingView() {
     showView('serving');
     if (myQueue) {
-      servingQueueNumber.textContent = '#' + myQueue.number;
+      servingQueueNumber.textContent = '#' + (myQueue.number || '?');
     }
+  }
+
+  // Show loading state (all sections hidden, connection status visible)
+  function showLoadingView() {
+    currentView = 'loading';
+    joinSection.classList.add('hidden');
+    waitingSection.classList.add('hidden');
+    servingSection.classList.add('hidden');
   }
 
   // ==================== Socket.IO ====================
@@ -147,20 +156,38 @@
 
   socket.on('connect', () => {
     updateConnectionStatus(true);
+
     const saved = loadMyQueue();
-    if (saved && !isReconnecting) {
+    if (saved && saved.id) {
+      // We have a saved queue — attempt reconnect
       isReconnecting = true;
+      reconnectDone = false;
       socket.emit('queue:reconnect', {
         queueId: saved.id,
         createdDate: saved.createdDate || null,
       }, (res) => {
         isReconnecting = false;
+        reconnectDone = true;
         if (res && res.success) {
-          myQueue = saved;
+          // Update myQueue with full data from server
+          myQueue = {
+            id: res.queue.id,
+            number: res.queue.number,
+            groupSize: res.queue.groupSize,
+            name: res.queue.name || saved.name || '',
+            totalMinutes: res.queue.totalMinutes,
+            createdDate: res.queue.createdDate || saved.createdDate,
+          };
+          saveMyQueue(myQueue);
+
           if (res.status === 'serving') {
             showServingView();
           } else {
             showWaitingView();
+          }
+          // Process any queued state update
+          if (latestState) {
+            handleStateUpdate(latestState);
           }
         } else {
           clearMyQueue();
@@ -170,6 +197,22 @@
           }
         }
       });
+
+      // Timeout for reconnect — if server doesn't respond in 5s, show join
+      setTimeout(() => {
+        if (isReconnecting) {
+          isReconnecting = false;
+          reconnectDone = true;
+          clearMyQueue();
+          showJoinView();
+          showToast('ไม่สามารถเชื่อมต่อคิวเดิมได้');
+        }
+      }, 5000);
+    } else {
+      // No saved queue
+      isReconnecting = false;
+      reconnectDone = true;
+      showJoinView();
     }
   });
 
@@ -180,6 +223,12 @@
       serverTimeOffset = state.serverTimestamp - Date.now();
     }
     latestState = state;
+
+    // Don't process state updates while reconnecting — wait for reconnect to finish
+    if (isReconnecting) {
+      return;
+    }
+
     handleStateUpdate(state);
   });
 
@@ -190,10 +239,10 @@
   });
 
   socket.on('queue:called', (data) => {
-    if (currentView === 'waiting') {
+    if (myQueue && (currentView === 'waiting' || currentView === 'loading')) {
       calledQueueNumber.textContent = data.queueNumber;
       calledOverlay.classList.remove('hidden');
-      if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500, 200, 800]); // Long distinct vibration
+      if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500, 200, 800]);
       if (!notifiedCalled) {
         notifiedCalled = true;
         sendSystemNotification('It is your turn!', `Please come to the storefront now. Queue #${data.queueNumber}`);
@@ -209,11 +258,12 @@
 
   // ==================== State Handler ====================
   function handleStateUpdate(state) {
-    if (!state || !myQueue) {
-      // No queue → just update display
-      if (currentView === 'waiting' || currentView === 'serving') {
-        // Verify our queue still exists
-        if (myQueue) verifyMyQueue();
+    if (!state) return;
+
+    // If we don't have a queue, we're just a spectator — but still should update if in waiting/serving view
+    if (!myQueue) {
+      if (currentView === 'loading' && reconnectDone) {
+        showJoinView();
       }
       return;
     }
@@ -228,16 +278,26 @@
     const amGone = myIdx === -1 && !amServing;
 
     if (amGone) {
-      // Queue completed or cancelled
       if (currentView === 'serving') {
-        // Was serving, now done → clear and go to join
+        // Was serving, now done
         clearMyQueue();
         showJoinView();
         showToast('Photo session completed!');
       } else if (currentView === 'waiting') {
-        // Was waiting but got removed → should not happen normally
+        // Was waiting but got removed (cancelled by admin or auto-advanced past us)
         clearMyQueue();
         showJoinView();
+      } else if (currentView === 'loading') {
+        // Still loading — could be due to auto-call delay. Wait a moment.
+        setTimeout(() => {
+          if (!myQueue) return; // Already cleared
+          const recheckIdx = latestState ? latestState.waitingQueues.findIndex(q => q.id === myQueue.id) : -1;
+          const recheckServing = latestState && latestState.currentQueue && latestState.currentQueue.id === myQueue.id;
+          if (recheckIdx === -1 && !recheckServing) {
+            clearMyQueue();
+            showJoinView();
+          }
+        }, 2000);
       }
       return;
     }
@@ -251,6 +311,11 @@
         notifiedCalled = true;
         sendSystemNotification('It is your turn!', `Please come to the storefront now. Queue #${myQueue.number}`);
       }
+    }
+
+    if (amServing && currentView !== 'serving' && currentView !== 'waiting') {
+      // Reconnected and we're being served — go to serving view
+      showServingView();
     }
 
     if (amServing && currentView === 'serving') {
@@ -365,7 +430,7 @@
     }
   }
 
-  // ==================== Serving Timer (gentle, not pressuring) ====================
+  // ==================== Serving Timer ====================
   function updateServingTimer() {
     if (!latestState || !latestState.currentQueue || !latestState.currentQueue.startedAt) return;
     if (latestState.currentQueue.id !== (myQueue && myQueue.id)) return;
@@ -373,14 +438,12 @@
     const elapsedMs = getServerNow() - latestState.currentQueue.startedAt;
     const allocatedMs = latestState.currentQueue.totalMinutes * 60 * 1000;
 
-    // Show gentle progress — NOT a countdown, just elapsed
     const progress = Math.min(100, (elapsedMs / allocatedMs) * 100);
     servingProgressBar.style.width = progress + '%';
 
     const elapsedMins = Math.floor(elapsedMs / 60000);
     const elapsedSecs = Math.floor((elapsedMs % 60000) / 1000);
 
-    // Gentle message, not pressuring
     if (progress < 80) {
       servingTimeLeft.textContent = `Serving for ${elapsedMins}:${String(elapsedSecs).padStart(2, '0')} min`;
     } else {
@@ -410,11 +473,14 @@
 
   // ==================== Verify queue exists ====================
   function verifyMyQueue() {
-    if (!myQueue) return;
+    if (!myQueue || !myQueue.id) return;
     socket.emit('queue:check', { queueId: myQueue.id }, (res) => {
       if (!res || !res.exists) {
         clearMyQueue();
         showJoinView();
+      } else if (res.status === 'serving' && currentView === 'waiting') {
+        // We're being served but didn't get the notification — show serving
+        showServingView();
       }
     });
   }
@@ -448,7 +514,11 @@
   function loadMyQueue() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Validate that the saved queue has at minimum an ID
+      if (parsed && parsed.id) return parsed;
+      return null;
     } catch (e) { return null; }
   }
   function clearMyQueue() {
@@ -569,7 +639,6 @@
     btnNewQueue.innerHTML = 'Clearing...';
 
     if (myQueue) {
-      // Tell the server we are done, so it can call the next person
       socket.emit('queue:customerComplete', { queueId: myQueue.id }, () => {
         clearMyQueue();
         showJoinView();
@@ -598,15 +667,21 @@
   const sq = urlParams.get('sq');
 
   if (sq) {
-    // Session migration from in-app browser
-    myQueue = { id: sq };
-    saveMyQueue(myQueue);
-    showWaitingView();
+    // Session migration from in-app browser — save the ID and let reconnect handle it
+    const saved = loadMyQueue();
+    if (!saved || saved.id !== sq) {
+      // Save as partial — reconnect will fill in full data from server
+      saveMyQueue({ id: sq });
+    }
+    myQueue = saved && saved.id === sq ? saved : { id: sq };
+    // Show loading state until reconnect completes
+    showLoadingView();
   } else {
     const saved = loadMyQueue();
-    if (saved) {
+    if (saved && saved.id) {
       myQueue = saved;
-      showWaitingView(); // Will be corrected by reconnect callback
+      // Show loading state until reconnect verifies our queue
+      showLoadingView();
     } else {
       showJoinView();
     }

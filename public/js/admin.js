@@ -38,12 +38,14 @@
 
   // ==================== State ====================
   let isAuthenticated = false;
+  let savedPin = null; // Keep PIN in memory for socket re-auth
   let latestState = null;
   let serverTimeOffset = 0;
+  let socketAuthDone = false; // Track whether socket has been authenticated
 
   function getServerNow() { return Date.now() + serverTimeOffset; }
 
-  // Tick every second for queue timer (client-side only)
+  // Tick every second for queue timer
   setInterval(() => {
     if (isAuthenticated && latestState && latestState.currentQueue && latestState.currentQueue.startedAt) {
       const elapsedMs = getServerNow() - latestState.currentQueue.startedAt;
@@ -68,16 +70,37 @@
 
   // ==================== Auth ====================
   const AUTH_KEY = 'photoqueue_admin_auth';
+  const PIN_KEY = 'photoqueue_admin_pin';
 
   function checkSavedAuth() {
     try {
-      if (sessionStorage.getItem(AUTH_KEY) === 'true') {
+      const storedPin = sessionStorage.getItem(PIN_KEY);
+      if (sessionStorage.getItem(AUTH_KEY) === 'true' && storedPin) {
+        savedPin = storedPin;
         isAuthenticated = true;
         showDashboard();
         return true;
       }
     } catch (e) {}
     return false;
+  }
+
+  function saveAuth(pin) {
+    try {
+      sessionStorage.setItem(AUTH_KEY, 'true');
+      sessionStorage.setItem(PIN_KEY, pin);
+      savedPin = pin;
+    } catch (e) {}
+  }
+
+  function clearAuth() {
+    try {
+      sessionStorage.removeItem(AUTH_KEY);
+      sessionStorage.removeItem(PIN_KEY);
+    } catch (e) {}
+    savedPin = null;
+    isAuthenticated = false;
+    socketAuthDone = false;
   }
 
   // ==================== PIN ====================
@@ -102,12 +125,14 @@
     if (pin.length < 4) return;
     btnLogin.disabled = true;
     btnLogin.innerHTML = 'Verifying...';
+    pinError.textContent = '';
     try {
       const res = await fetch(`/api/verify-pin?pin=${encodeURIComponent(pin)}`);
       const data = await res.json();
       if (data.success) {
         isAuthenticated = true;
-        try { sessionStorage.setItem(AUTH_KEY, 'true'); } catch (e) {}
+        savedPin = pin;
+        saveAuth(pin);
         showDashboard();
       } else {
         pinError.textContent = 'Invalid PIN';
@@ -124,8 +149,7 @@
   pinDigits[3].addEventListener('keydown', (e) => { if (e.key === 'Enter') btnLogin.click(); });
 
   btnLogout.addEventListener('click', () => {
-    try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
-    isAuthenticated = false;
+    clearAuth();
     pinScreen.style.display = '';
     adminDashboard.classList.add('hidden');
     pinDigits.forEach(d => { d.value = ''; });
@@ -139,6 +163,30 @@
     adminDashboard.classList.remove('hidden');
     updateDate();
     loadQR();
+    authenticateSocket();
+  }
+
+  // Authenticate socket with PIN (called on connect and on login)
+  function authenticateSocket() {
+    if (!savedPin || !socket.connected) return;
+    
+    socketAuthDone = false;
+    socket.emit('admin:auth', { pin: savedPin }, (res) => {
+      if (res && res.success) {
+        socketAuthDone = true;
+        console.log('✅ Socket authenticated as admin');
+      } else {
+        // PIN was rejected by server — force logout
+        console.log('❌ Socket auth failed — PIN rejected');
+        socketAuthDone = false;
+        clearAuth();
+        pinScreen.style.display = '';
+        adminDashboard.classList.add('hidden');
+        pinDigits.forEach(d => { d.value = ''; });
+        pinError.textContent = 'Session expired. Please login again.';
+        pinDigits[0].focus();
+      }
+    });
   }
 
   function updateDate() {
@@ -168,8 +216,17 @@
     timeout: 10000,
   });
 
-  socket.on('connect', () => updateConnectionStatus(true));
-  socket.on('disconnect', () => updateConnectionStatus(false));
+  socket.on('connect', () => {
+    updateConnectionStatus(true);
+    if (isAuthenticated && savedPin) {
+      authenticateSocket();
+    }
+  });
+
+  socket.on('disconnect', () => {
+    updateConnectionStatus(false);
+    socketAuthDone = false;
+  });
 
   socket.on('queue:state', (state) => {
     if (state.serverTimestamp) serverTimeOffset = state.serverTimestamp - Date.now();
@@ -192,7 +249,7 @@
   // ==================== Update Dashboard ====================
   function updateDashboard(state) {
     if (!state) return;
-    adminStatCurrent.textContent = state.currentQueue ? '#' + state.currentQueue.number : '—';
+    adminStatCurrent.textContent = state.currentQueue ? 'คิวที่ ' + state.currentQueue.number : '—';
     adminStatWaiting.textContent = state.totalWaiting;
     adminStatTime.textContent = state.totalEstimatedMinutes;
     adminStatDone.textContent = state.completedToday;
@@ -200,8 +257,8 @@
     if (state.currentQueue) {
       currentBanner.classList.remove('hidden');
       noCurrentBanner.classList.add('hidden');
-      const nameD = state.currentQueue.name ? ` <span style="font-size:0.5em;color:var(--text-secondary);font-weight:normal">(${state.currentQueue.name})</span>` : '';
-      adminCurrentNumber.innerHTML = '#' + state.currentQueue.number + nameD;
+      const nameD = state.currentQueue.name ? ` <span style="font-size:0.5em;color:var(--text-secondary);font-weight:normal">(${escapeHtml(state.currentQueue.name)})</span>` : '';
+      adminCurrentNumber.innerHTML = 'คิวที่ ' + state.currentQueue.number + nameD;
       adminCurrentInfo.textContent = `${state.currentQueue.groupSize} ppl · ${state.currentQueue.totalMinutes} min`;
     } else {
       currentBanner.classList.add('hidden');
@@ -214,6 +271,12 @@
     updateDate();
   }
 
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   function renderQueueTable(state) {
     waitingCount.textContent = state.totalWaiting;
     if (!state.waitingQueues || state.waitingQueues.length === 0) {
@@ -224,13 +287,13 @@
     queueTableWrapper.classList.remove('hidden');
     emptyQueue.classList.add('hidden');
     queueTableBody.innerHTML = state.waitingQueues.map((q) => {
-      const nameT = q.name ? `<br><small style="color:var(--text-muted);font-weight:normal;font-size:0.8rem">(${q.name})</small>` : '';
+      const nameT = q.name ? `<br><small style="color:var(--text-muted);font-weight:normal;font-size:0.8rem">(${escapeHtml(q.name)})</small>` : '';
       return `
       <tr>
-        <td><span class="q-num">#${q.number}</span>${nameT}</td>
+        <td><span class="q-num">คิวที่ ${q.number}</span>${nameT}</td>
         <td><span class="q-people">${q.groupSize} ppl</span></td>
-        <td class="q-time">${q.totalMinutes} min</td>
-        <td class="q-time">~${q.estimatedMinutes} min</td>
+        <td class="q-time">${q.totalMinutes}m</td>
+        <td class="q-time">~${q.estimatedMinutes}m</td>
         <td class="q-actions"><button class="btn btn-danger btn-sm" onclick="cancelQueue('${q.id}',${q.number})">X</button></td>
       </tr>
       `;
@@ -295,7 +358,7 @@
   });
 
   window.cancelQueue = function (queueId, number) {
-    if (!confirm(`Cancel queue #${number}?`)) return;
+    if (!confirm(`ยกเลิกคิวที่ ${number}?`)) return;
     socket.emit('queue:cancel', { queueId });
   };
 
