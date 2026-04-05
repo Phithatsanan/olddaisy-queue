@@ -438,12 +438,24 @@
     showServingView();
   });
 
-  // New queue button (from serving view)
+  // New queue button (from serving view) - End turn early
   btnNewQueue.addEventListener('click', () => {
-    clearMyQueue();
-    showJoinView();
-    personCount = 1;
-    updatePersonCount();
+    if (!confirm('ยืนยันว่าถ่ายรูปเสร็จแล้วและน่าจะกลับไปต่อคิวใหม่?')) return;
+    
+    if (myQueue) {
+      // Tell the server we are done, so it can call the next person
+      socket.emit('queue:customerComplete', { queueId: myQueue.id }, () => {
+        clearMyQueue();
+        showJoinView();
+        personCount = 1;
+        updatePersonCount();
+      });
+    } else {
+      clearMyQueue();
+      showJoinView();
+      personCount = 1;
+      updatePersonCount();
+    }
   });
 
   // Re-verify when user comes back to tab

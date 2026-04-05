@@ -366,6 +366,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ---------- Customer: Finish Early ----------
+  socket.on('queue:customerComplete', ({ queueId }, callback) => {
+    // Only the customer currently serving can finish early this way
+    if (state.currentQueue && state.currentQueue.id === queueId) {
+      const next = advanceToNext();
+      console.log('✅ Customer finished early' + (next ? `, now #${next.number}` : ''));
+      if (callback) callback({ success: true });
+      broadcastState();
+    } else {
+      if (callback) callback({ success: false });
+    }
+  });
+
   // ---------- Admin: Call Next (manual skip) ----------
   socket.on('queue:callNext', (data, callback) => {
     checkDailyReset();
