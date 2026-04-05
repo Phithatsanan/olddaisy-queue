@@ -12,6 +12,8 @@
   const waitingSection = $('waitingSection');
   const servingSection = $('servingSection');
   const calledOverlay = $('calledOverlay');
+  const almostReadyOverlay = $('almostReadyOverlay');
+  const btnDismissAlmostReady = $('btnDismissAlmostReady');
 
   // Connection
   const connectionStatus = $('connectionStatus');
@@ -55,6 +57,7 @@
   let latestState = null;
   let currentView = 'join'; // 'join' | 'waiting' | 'serving'
   let isReconnecting = false;
+  let hasSeenAlmostReadyPopup = false;
 
   // Server time sync
   let serverTimeOffset = 0;
@@ -78,6 +81,7 @@
 
   function showJoinView() {
     showView('join');
+    hasSeenAlmostReadyPopup = false;
   }
 
   function showWaitingView() {
@@ -285,6 +289,16 @@
     } else {
       warningBox.classList.add('hidden');
     }
+
+    // 2-Minute Popup logic (show exactly once if est <= 2)
+    if (est <= 2 && !hasSeenAlmostReadyPopup) {
+      // Don't show if the shop is completely empty and we are #1 (because we get auto-called)
+      if (!(myIdx === 0 && !latestState.currentQueue)) {
+        hasSeenAlmostReadyPopup = true;
+        almostReadyOverlay.classList.remove('hidden');
+        if (window.navigator.vibrate) window.navigator.vibrate([200, 100, 200]);
+      }
+    }
   }
 
   // ==================== Serving Timer (gentle, not pressuring) ====================
@@ -451,6 +465,11 @@
   btnDismissCalled.addEventListener('click', () => {
     calledOverlay.classList.add('hidden');
     showServingView();
+  });
+
+  // Almost Ready overlay → Dismiss
+  btnDismissAlmostReady.addEventListener('click', () => {
+    almostReadyOverlay.classList.add('hidden');
   });
 
   // New queue button (from serving view) - End turn early
