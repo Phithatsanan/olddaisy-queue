@@ -156,6 +156,7 @@
     if (currentView === 'waiting') {
       calledQueueNumber.textContent = data.queueNumber;
       calledOverlay.classList.remove('hidden');
+      if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500, 200, 800]); // Long distinct vibration
     }
   });
 
@@ -204,6 +205,7 @@
       // Just got called! Show overlay
       calledQueueNumber.textContent = myQueue.number;
       calledOverlay.classList.remove('hidden');
+      if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500, 200, 800]);
     }
 
     if (amServing && currentView === 'serving') {
