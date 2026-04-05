@@ -41,34 +41,17 @@
   let calledAcknowledged = false;
   let isReconnecting = false;
 
-  // ==================== Client-side clock ====================
-  // We sync offset from server once, then tick locally every second
-  let serverTimeOffset = 0; // ms offset: serverTime - clientTime
+  // ==================== Server time sync ====================
+  let serverTimeOffset = 0;
 
   function getServerNow() {
     return Date.now() + serverTimeOffset;
   }
 
-  // Real-time clock display element (injected into header)
-  const clockEl = document.createElement('div');
-  clockEl.className = 'realtime-clock';
-  clockEl.id = 'realtimeClock';
-  const headerEl = document.querySelector('.customer-header');
-  if (headerEl) headerEl.appendChild(clockEl);
-
-  function tickClock() {
-    const now = new Date(getServerNow());
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-    clockEl.textContent = `${h}:${m}:${s}`;
-
-    // Also update countdown if we have a state
+  // Tick every second to update queue countdown (client-side, no server calls)
+  setInterval(() => {
     if (latestState) updateCountdown();
-  }
-
-  setInterval(tickClock, 1000);
-  tickClock();
+  }, 1000);
 
   // ==================== Socket.IO ====================
   const socket = io({

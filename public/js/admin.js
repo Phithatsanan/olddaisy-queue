@@ -43,21 +43,8 @@
 
   function getServerNow() { return Date.now() + serverTimeOffset; }
 
-  // ==================== Real-time clock ====================
-  const clockEl = document.createElement('div');
-  clockEl.className = 'realtime-clock';
-  clockEl.id = 'adminClock';
-  const headerEl = document.querySelector('.admin-header');
-  if (headerEl) headerEl.appendChild(clockEl);
-
-  function tickClock() {
-    const now = new Date(getServerNow());
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-    clockEl.textContent = `${h}:${m}:${s}`;
-
-    // Update timer for current queue (client-side, every second)
+  // Tick every second for queue timer (client-side only)
+  setInterval(() => {
     if (isAuthenticated && latestState && latestState.currentQueue && latestState.currentQueue.startedAt) {
       const elapsedMs = getServerNow() - latestState.currentQueue.startedAt;
       const allocatedMs = latestState.currentQueue.totalMinutes * 60 * 1000;
@@ -69,20 +56,15 @@
       if (remainingMs <= 0) {
         adminCurrentTimer.textContent = 'เกินเวลา';
         adminCurrentTimer.classList.add('overtime');
+        adminCurrentTimer.classList.remove('urgent');
       } else {
         adminCurrentTimer.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
         adminCurrentTimer.classList.remove('overtime');
-        if (remainingMs < 30000) adminCurrentTimer.classList.add('urgent');
-        else adminCurrentTimer.classList.remove('urgent');
+        adminCurrentTimer.classList.toggle('urgent', remainingMs < 30000);
       }
     }
-
-    // Auto-update date at midnight
     updateDate();
-  }
-
-  setInterval(tickClock, 1000);
-  tickClock();
+  }, 1000);
 
   // ==================== Auth ====================
   const AUTH_KEY = 'photoqueue_admin_auth';
