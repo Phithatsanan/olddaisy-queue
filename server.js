@@ -12,6 +12,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_PIN = process.env.ADMIN_PIN || '1412';
+const BASE_URL = process.env.BASE_URL || null; // e.g. https://olddaisy-queue.onrender.com
 const MINUTES_PER_PERSON = 2;
 const WARNING_MINUTES = 10;
 const DATA_DIR = path.join(__dirname, 'data');
@@ -143,17 +144,15 @@ app.get('/admin', (req, res) => {
 // QR Code endpoint
 app.get('/api/qr', async (req, res) => {
   try {
-    const interfaces = os.networkInterfaces();
-    let localIP = 'localhost';
-    for (const name of Object.keys(interfaces)) {
-      for (const iface of interfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          localIP = iface.address;
-          break;
-        }
-      }
+    let url;
+    if (BASE_URL) {
+      url = BASE_URL;
+    } else {
+      // Auto-detect from request headers (works on reverse proxies & direct)
+      const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      url = `${proto}://${host}`;
     }
-    const url = `http://${localIP}:${PORT}`;
     const qrDataUrl = await QRCode.toDataURL(url, {
       width: 400,
       margin: 2,
