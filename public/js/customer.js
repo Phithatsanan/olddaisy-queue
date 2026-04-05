@@ -419,9 +419,24 @@
     }, 5000);
   });
 
+  let cancelConfirmTimer = null;
   btnCancel.addEventListener('click', () => {
     if (!myQueue) return;
-    if (!confirm('ต้องการยกเลิกคิวใช่ไหม?')) return;
+    
+    if (!btnCancel.classList.contains('confirming')) {
+      btnCancel.classList.add('confirming');
+      btnCancel.innerHTML = '⚠️ กดย้ำอีกครั้งเพื่อยืนยันการยกเลิก';
+      cancelConfirmTimer = setTimeout(() => {
+        btnCancel.classList.remove('confirming');
+        btnCancel.innerHTML = '❌ ยกเลิกคิวของฉัน';
+      }, 3000);
+      return;
+    }
+
+    clearTimeout(cancelConfirmTimer);
+    btnCancel.classList.remove('confirming');
+    btnCancel.innerHTML = '❌ ยกเลิกคิวของฉัน';
+
     socket.emit('queue:cancel', { queueId: myQueue.id }, (res) => {
       if (res && res.success) {
         clearMyQueue();
@@ -439,9 +454,22 @@
   });
 
   // New queue button (from serving view) - End turn early
+  let newQueueConfirmTimer = null;
   btnNewQueue.addEventListener('click', () => {
-    if (!confirm('ยืนยันว่าถ่ายรูปเสร็จแล้วและน่าจะกลับไปต่อคิวใหม่?')) return;
-    
+    if (!btnNewQueue.classList.contains('confirming')) {
+      btnNewQueue.classList.add('confirming');
+      btnNewQueue.innerHTML = '⚠️ กดยืนยันว่าเสร็จแล้วอีกครั้ง';
+      newQueueConfirmTimer = setTimeout(() => {
+        btnNewQueue.classList.remove('confirming');
+        btnNewQueue.innerHTML = '🎫 รับคิวใหม่';
+      }, 3000);
+      return;
+    }
+
+    clearTimeout(newQueueConfirmTimer);
+    btnNewQueue.classList.remove('confirming');
+    btnNewQueue.innerHTML = '⏳ กำลังออกจากคิว...';
+
     if (myQueue) {
       // Tell the server we are done, so it can call the next person
       socket.emit('queue:customerComplete', { queueId: myQueue.id }, () => {
@@ -449,12 +477,14 @@
         showJoinView();
         personCount = 1;
         updatePersonCount();
+        btnNewQueue.innerHTML = '🎫 รับคิวใหม่';
       });
     } else {
       clearMyQueue();
       showJoinView();
       personCount = 1;
       updatePersonCount();
+      btnNewQueue.innerHTML = '🎫 รับคิวใหม่';
     }
   });
 

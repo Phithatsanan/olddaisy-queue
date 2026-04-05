@@ -290,6 +290,19 @@
   opacity: 1;
 }
 
+.btn.confirming {
+  background: var(--gradient-warm) !important;
+  color: #fff !important;
+  opacity: 1 !important;
+  border-color: transparent !important;
+  animation: pulseConfirm 1s infinite alternate;
+}
+
+@keyframes pulseConfirm {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.02); }
+}
+
 /* ==================== Serving Section (gentle, not pressuring) ==================== */
 .serving-section {
   animation: slideUp 0.5s ease-out;
