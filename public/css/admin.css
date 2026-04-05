@@ -1,0 +1,401 @@
+/* ==================== Admin Page ==================== */
+
+.admin-container {
+  max-width: 900px;
+}
+
+/* Header */
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border-glass);
+  margin-bottom: 24px;
+}
+
+.admin-header .title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-header .logo {
+  font-size: 2rem;
+}
+
+.admin-header h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.admin-header .subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* ==================== PIN Screen ==================== */
+.pin-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+}
+
+.pin-card {
+  text-align: center;
+  padding: 40px;
+  max-width: 380px;
+  width: 100%;
+}
+
+.pin-card .emoji {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.pin-card h2 {
+  margin-bottom: 8px;
+}
+
+.pin-card .desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+.pin-input-group {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.pin-digit {
+  width: 56px;
+  height: 64px;
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: 700;
+  background: var(--bg-glass);
+  border: 2px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  outline: none;
+  transition: all var(--transition-base);
+  font-family: var(--font-thai);
+}
+
+.pin-digit:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.pin-error {
+  color: var(--accent-red);
+  font-size: 0.85rem;
+  margin-top: -16px;
+  margin-bottom: 16px;
+  min-height: 20px;
+}
+
+/* ==================== Dashboard Stats ==================== */
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin-stats .stat-card {
+  padding: 20px 16px;
+}
+
+.admin-stats .stat-value {
+  font-size: 2rem;
+}
+
+/* ==================== Action Buttons ==================== */
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.admin-actions .btn {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* ==================== Current Queue Banner ==================== */
+.current-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border: 1px solid rgba(6, 214, 160, 0.25);
+  background: linear-gradient(135deg, rgba(6, 214, 160, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
+  margin-bottom: 24px;
+}
+
+.current-banner .left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.current-banner .serving-label {
+  font-size: 0.75rem;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.current-banner .serving-number {
+  font-size: 3rem;
+  font-weight: 900;
+  background: var(--gradient-success);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+.current-banner .serving-info {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.current-banner .timer {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.current-banner .timer.overtime {
+  color: var(--accent-red);
+}
+
+.no-current {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.no-current .emoji {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* ==================== Queue Table ==================== */
+.queue-table-section h3 {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.queue-table-section h3 .count {
+  background: var(--gradient-warm);
+  color: white;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+}
+
+.queue-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.queue-table th {
+  text-align: left;
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.queue-table td {
+  padding: 14px 16px;
+  background: var(--bg-glass);
+  border-top: 1px solid var(--border-glass);
+  border-bottom: 1px solid var(--border-glass);
+  transition: all var(--transition-base);
+}
+
+.queue-table tr td:first-child {
+  border-left: 1px solid var(--border-glass);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.queue-table tr td:last-child {
+  border-right: 1px solid var(--border-glass);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.queue-table tbody tr:hover td {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+}
+
+.queue-table .q-num {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.queue-table .q-people {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.queue-table .q-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.queue-table .q-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.empty-queue {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+
+.empty-queue .emoji {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  display: block;
+}
+
+/* ==================== QR Section ==================== */
+.qr-section {
+  margin-top: 24px;
+  text-align: center;
+  padding: 32px;
+}
+
+.qr-section h3 {
+  margin-bottom: 16px;
+}
+
+.qr-image {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.qr-image img {
+  width: 200px;
+  height: 200px;
+  display: block;
+}
+
+.qr-url {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+/* ==================== Reset Confirmation ==================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.modal-card .emoji {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.modal-card h3 {
+  margin-bottom: 8px;
+}
+
+.modal-card p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+.modal-card .actions {
+  display: flex;
+  gap: 12px;
+}
+
+.modal-card .actions .btn {
+  flex: 1;
+}
+
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
+  .admin-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-actions {
+    flex-direction: column;
+  }
+
+  .admin-actions .btn {
+    min-width: auto;
+  }
+
+  .current-banner {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .current-banner .left {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .queue-table {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .admin-stats .stat-value {
+    font-size: 1.6rem;
+  }
+}

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OldDaisy — รับคิวถ่ายรูป</title>
+  <meta name="description" content="ระบบรับคิวถ่ายรูปหน้าร้าน OldDaisy สแกน QR แล้วรับคิวได้ทันที">
+  <meta name="theme-color" content="#0a0a1a">
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/customer.css">
+</head>
+<body>
+  <!-- Connection Status -->
+  <div id="connectionStatus" class="connection-status connected">
+    <span class="status-dot"></span>
+    <span id="connectionText">เชื่อมต่อแล้ว</span>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="customer-header">
+      <span class="logo">🌼</span>
+      <h1>OldDaisy</h1>
+      <p class="subtitle">ระบบรับคิวถ่ายรูป</p>
+    </header>
+
+    <!-- ==================== JOIN SECTION ==================== -->
+    <section id="joinSection" class="join-section">
+      <div class="glass-card join-card">
+        <h3>🎫 รับคิว</h3>
+        <p class="desc">เลือกจำนวนคน แล้วกดรับคิวได้เลย!</p>
+
+        <div class="person-selector">
+          <button id="btnMinus" class="btn btn-icon" aria-label="ลดจำนวนคน">−</button>
+          <span id="personCount" class="person-count">1</span>
+          <button id="btnPlus" class="btn btn-icon" aria-label="เพิ่มจำนวนคน">+</button>
+        </div>
+        <p class="person-label">จำนวนคน</p>
+
+        <div class="time-estimate">
+          ⏱️ เวลาถ่ายโดยประมาณ: <span id="timeEstimate">2 นาที</span>
+        </div>
+
+        <button id="btnJoin" class="btn btn-primary btn-lg w-full mt-2">
+          🎫 รับคิว
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== MY QUEUE SECTION ==================== -->
+    <section id="myQueueSection" class="my-queue-section hidden">
+      <!-- My Queue Card -->
+      <div class="glass-card my-queue-card mb-3">
+        <p class="my-queue-label">คิวของคุณ</p>
+        <div id="myQueueNumber" class="my-queue-number">—</div>
+        <div class="my-queue-info">
+          <div class="info-item">
+            <div id="myGroupSize" class="info-value">—</div>
+            <div class="info-label">จำนวนคน</div>
+          </div>
+          <div class="info-item">
+            <div id="myTotalMinutes" class="info-value">—</div>
+            <div class="info-label">นาที</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Warning Box (hidden by default) -->
+      <div id="warningBox" class="warning-box mb-3 hidden">
+        <div class="icon">⚠️</div>
+        <div class="text">
+          <h4>เตรียมตัวได้เลย!</h4>
+          <p id="warningText">อีกไม่เกิน 10 นาทีจะถึงคิวของคุณ</p>
+        </div>
+      </div>
+
+      <!-- Countdown -->
+      <div class="glass-card countdown mb-3">
+        <div id="countdownTime" class="time">— นาที</div>
+        <div class="time-label">เวลาโดยประมาณก่อนถึงคิว</div>
+      </div>
+
+      <!-- Current Serving -->
+      <div class="glass-card current-serving mb-3">
+        <div class="label">🎬 กำลังให้บริการ</div>
+        <div id="currentQueueDisplay" class="number">—</div>
+        <div id="currentQueueDetails" class="details"></div>
+      </div>
+
+      <!-- Status Grid -->
+      <div class="status-grid mb-3">
+        <div class="glass-card stat-card">
+          <div id="statAhead" class="stat-value gradient-warm">0</div>
+          <div class="stat-label">คิวข้างหน้า</div>
+        </div>
+        <div class="glass-card stat-card">
+          <div id="statTotal" class="stat-value gradient-cool">0</div>
+          <div class="stat-label">คิวทั้งหมด</div>
+        </div>
+        <div class="glass-card stat-card">
+          <div id="statDone" class="stat-value gradient-success">0</div>
+          <div class="stat-label">เสร็จแล้ว</div>
+        </div>
+      </div>
+
+      <!-- Queue List -->
+      <section class="queue-list-section mb-3">
+        <h3>📋 รายการคิว</h3>
+        <div id="queueListCustomer" class="queue-list-customer">
+          <!-- Rendered by JS -->
+        </div>
+      </section>
+
+      <!-- Cancel -->
+      <div class="cancel-section">
+        <button id="btnCancel" class="btn btn-secondary btn-sm">
+          ❌ ยกเลิกคิวของฉัน
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ==================== CALLED OVERLAY ==================== -->
+  <div id="calledOverlay" class="called-overlay hidden">
+    <div class="called-card">
+      <div class="emoji">🔔</div>
+      <h2>ถึงคิวของคุณแล้ว!</h2>
+      <div id="calledQueueNumber" class="queue-number-large">—</div>
+      <p>กรุณามาที่หน้าร้านเพื่อถ่ายรูป</p>
+      <button id="btnDismissCalled" class="btn btn-success btn-lg w-full">
+        ✅ รับทราบ
+      </button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/customer.js"></script>
+</body>
+</html>

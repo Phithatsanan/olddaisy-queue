@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — OldDaisy Queue</title>
+  <meta name="description" content="หน้าจัดการคิวถ่ายรูป สำหรับแอดมิน">
+  <meta name="theme-color" content="#0a0a1a">
+  <link rel="stylesheet" href="/css/common.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <!-- Connection Status -->
+  <div id="connectionStatus" class="connection-status connected">
+    <span class="status-dot"></span>
+    <span id="connectionText">เชื่อมต่อแล้ว</span>
+  </div>
+
+  <!-- ==================== PIN SCREEN ==================== -->
+  <div id="pinScreen" class="pin-screen">
+    <div class="glass-card pin-card">
+      <div class="emoji">🔐</div>
+      <h2>เข้าสู่ระบบแอดมิน</h2>
+      <p class="desc">กรุณาใส่ PIN 4 หลัก</p>
+      <div class="pin-input-group">
+        <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="0" id="pin0" autofocus>
+        <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="1" id="pin1">
+        <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="2" id="pin2">
+        <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" data-index="3" id="pin3">
+      </div>
+      <p id="pinError" class="pin-error"></p>
+      <button id="btnLogin" class="btn btn-cool btn-lg w-full" disabled>
+        🔓 เข้าสู่ระบบ
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== ADMIN DASHBOARD ==================== -->
+  <div id="adminDashboard" class="container container-wide hidden">
+    <!-- Header -->
+    <header class="admin-header">
+      <div class="title-group">
+        <span class="logo">🌼</span>
+        <div>
+          <h1>OldDaisy <span style="color: var(--accent-blue)">Admin</span></h1>
+          <p class="subtitle" id="adminDate"></p>
+        </div>
+      </div>
+      <button id="btnLogout" class="btn btn-secondary btn-sm">🚪 ออก</button>
+    </header>
+
+    <!-- Stats -->
+    <div class="admin-stats">
+      <div class="glass-card stat-card">
+        <div id="adminStatCurrent" class="stat-value gradient-success">—</div>
+        <div class="stat-label">คิวปัจจุบัน</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div id="adminStatWaiting" class="stat-value gradient-warm">0</div>
+        <div class="stat-label">คิวรอ</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div id="adminStatTime" class="stat-value gradient-cool">0</div>
+        <div class="stat-label">นาทีรอรวม</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div id="adminStatDone" class="stat-value gradient-success">0</div>
+        <div class="stat-label">เสร็จแล้ว</div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="admin-actions">
+      <button id="btnCallNext" class="btn btn-success btn-lg">
+        📢 เรียกคิวถัดไป
+      </button>
+      <button id="btnComplete" class="btn btn-cool btn-lg">
+        ✅ จบคิวปัจจุบัน
+      </button>
+      <button id="btnReset" class="btn btn-danger btn-sm">
+        🔄 รีเซ็ตทั้งหมด
+      </button>
+    </div>
+
+    <!-- Current Queue Banner -->
+    <div id="currentBanner" class="glass-card current-banner hidden">
+      <div class="left">
+        <div>
+          <div class="serving-label">🎬 กำลังให้บริการ</div>
+          <div id="adminCurrentNumber" class="serving-number">—</div>
+        </div>
+        <div>
+          <div id="adminCurrentInfo" class="serving-info"></div>
+        </div>
+      </div>
+      <div id="adminCurrentTimer" class="timer">0:00</div>
+    </div>
+
+    <div id="noCurrentBanner" class="glass-card no-current">
+      <span class="emoji">☕</span>
+      <p>ไม่มีคิวที่กำลังให้บริการ</p>
+    </div>
+
+    <!-- Queue Table -->
+    <section class="queue-table-section mb-3">
+      <h3>
+        📋 คิวที่รอ
+        <span id="waitingCount" class="count">0</span>
+      </h3>
+
+      <div id="queueTableWrapper">
+        <table class="queue-table" id="queueTable">
+          <thead>
+            <tr>
+              <th>คิว</th>
+              <th>จำนวนคน</th>
+              <th>เวลา</th>
+              <th>รอประมาณ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="queueTableBody">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="emptyQueue" class="glass-card empty-queue hidden">
+        <span class="emoji">🎉</span>
+        <p>ไม่มีคิวรอ ว่างอยู่!</p>
+      </div>
+    </section>
+
+    <!-- QR Code Section -->
+    <div class="glass-card qr-section">
+      <h3>📱 QR Code สำหรับลูกค้า</h3>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+        นำ QR Code นี้ไปวางหน้าร้าน ให้ลูกค้าสแกนเพื่อรับคิว
+      </p>
+      <div class="qr-image" id="qrImageContainer">
+        <div class="spinner" style="margin: 80px auto;"></div>
+      </div>
+      <p id="qrUrl" class="qr-url"></p>
+    </div>
+  </div>
+
+  <!-- ==================== RESET MODAL ==================== -->
+  <div id="resetModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="emoji">⚠️</div>
+      <h3>รีเซ็ตคิวทั้งหมด?</h3>
+      <p>คิวที่รอทั้งหมดจะถูกลบ และเริ่มนับคิวใหม่ตั้งแต่ #1<br>การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+      <div class="actions">
+        <button id="btnResetCancel" class="btn btn-secondary">ยกเลิก</button>
+        <button id="btnResetConfirm" class="btn btn-danger">🔄 รีเซ็ตเลย</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>
