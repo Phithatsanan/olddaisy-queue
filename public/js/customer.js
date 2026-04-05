@@ -54,26 +54,42 @@
 
   // ==================== State ====================
   let personCount = 1;
-  let myQueue = null; // { id, number, groupSize, totalMinutes }
+  let myQueue = null; // { id, number, groupSize, totalMinutes, createdDate }
   let latestState = null;
   let warningShown = false;
   let calledAcknowledged = false;
+  let isReconnecting = false;
 
   // ==================== Socket.IO ====================
-  const socket = io({ reconnection: true, reconnectionDelay: 1000 });
+  const socket = io({
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 10000,
+  });
 
   socket.on('connect', () => {
     updateConnectionStatus(true);
+
     // Try to reconnect existing queue
     const saved = loadMyQueue();
-    if (saved) {
-      socket.emit('queue:reconnect', { queueId: saved.id }, (res) => {
+    if (saved && !isReconnecting) {
+      isReconnecting = true;
+      socket.emit('queue:reconnect', {
+        queueId: saved.id,
+        createdDate: saved.createdDate || null,
+      }, (res) => {
+        isReconnecting = false;
         if (res && res.success) {
           myQueue = saved;
           showMyQueueView();
         } else {
+          // Queue is gone (server restarted, new day, cancelled, etc.)
           clearMyQueue();
           showJoinView();
+          if (res && res.reason === 'stale') {
+            showToast('คิวจากวันก่อนถูกรีเซ็ตแล้ว กรุณารับคิวใหม่');
+          }
         }
       });
     }
@@ -81,6 +97,19 @@
 
   socket.on('disconnect', () => {
     updateConnectionStatus(false);
+  });
+
+  socket.on('reconnect', () => {
+    // On reconnect, re-verify the queue
+    const saved = loadMyQueue();
+    if (saved) {
+      socket.emit('queue:check', { queueId: saved.id }, (res) => {
+        if (!res || !res.exists) {
+          clearMyQueue();
+          showJoinView();
+        }
+      });
+    }
   });
 
   socket.on('queue:state', (state) => {
@@ -103,10 +132,17 @@
     }
   });
 
+  // Daily reset notification
+  socket.on('queue:dayReset', (data) => {
+    clearMyQueue();
+    showJoinView();
+    showToast('วันใหม่! ระบบรีเซ็ตคิวอัตโนมัติ');
+  });
+
   // ==================== UI Functions ====================
   function updateConnectionStatus(connected) {
     connectionStatus.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
-    connectionText.textContent = connected ? 'เชื่อมต่อแล้ว' : 'ขาดการเชื่อมต่อ...';
+    connectionText.textContent = connected ? 'เชื่อมต่อแล้ว' : 'กำลังเชื่อมต่อ...';
   }
 
   function showJoinView() {
@@ -122,6 +158,25 @@
       myGroupSize.textContent = myQueue.groupSize;
       myTotalMinutes.textContent = myQueue.totalMinutes;
     }
+  }
+
+  function showToast(message) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,200,87,0.15); border: 1px solid rgba(255,200,87,0.4);
+      color: #ffc857; padding: 12px 24px; border-radius: 100px;
+      font-size: 0.9rem; font-weight: 600; z-index: 2000;
+      animation: slideUp 0.3s ease-out; backdrop-filter: blur(10px);
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
   }
 
   function updateDisplay(state) {
@@ -158,14 +213,13 @@
         // Warning box
         if (est <= 10) {
           warningBox.classList.remove('hidden');
-          warningText.textContent = est <= 1 
+          warningText.textContent = est <= 1
             ? 'เตรียมตัวเลย! คิวของคุณกำลังจะถึง!'
             : `อีกประมาณ ${est} นาทีจะถึงคิวของคุณ เตรียมตัวลงมาถ่ายได้เลย!`;
         } else {
           warningBox.classList.add('hidden');
         }
       } else {
-        // My queue is not in waiting list — might be being served or already removed
         // Check if I'm being served
         if (state.currentQueue && state.currentQueue.id === myQueue.id) {
           statAhead.textContent = '0';
@@ -174,8 +228,13 @@
           warningBox.classList.remove('hidden');
           warningText.textContent = '🎉 ถึงคิวของคุณแล้ว! กรุณามาที่หน้าร้าน';
         } else {
-          // Queue has been completed or cancelled — but we didn't cancel
-          // Keep showing if not acknowledged
+          // Queue completed or cancelled — verify with server
+          socket.emit('queue:check', { queueId: myQueue.id }, (res) => {
+            if (!res || !res.exists) {
+              clearMyQueue();
+              showJoinView();
+            }
+          });
         }
       }
     }
@@ -235,15 +294,13 @@
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.5);
-    } catch (e) {
-      // Audio not supported
-    }
+    } catch (e) { /* Audio not supported */ }
   }
 
   function playCalledSound() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      const notes = [523.25, 659.25, 783.99, 1046.50];
       notes.forEach((freq, i) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -257,36 +314,33 @@
         osc.start(start);
         osc.stop(start + 0.4);
       });
-    } catch (e) {
-      // Audio not supported
-    }
+    } catch (e) { /* Audio not supported */ }
   }
 
-  // ==================== Persistence ====================
+  // ==================== Persistence (localStorage) ====================
   function saveMyQueue(queue) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
-    } catch (e) {
-      // Storage not available
-    }
+    } catch (e) { /* Storage not available */ }
   }
 
   function loadMyQueue() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) {
-      // Storage not available
-    }
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Check if the data is from today (Bangkok time)
+        // Compare with server date on next state update
+        return parsed;
+      }
+    } catch (e) { /* Storage not available */ }
     return null;
   }
 
   function clearMyQueue() {
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch (e) {
-      // Storage not available
-    }
+    } catch (e) { /* Storage not available */ }
     myQueue = null;
     warningShown = false;
     calledAcknowledged = false;
@@ -313,6 +367,8 @@
   }
 
   btnJoin.addEventListener('click', () => {
+    // Prevent double-click
+    if (btnJoin.disabled) return;
     btnJoin.disabled = true;
     btnJoin.innerHTML = '<span class="spinner" style="width:20px;height:20px;border-width:2px;"></span> กำลังรับคิว...';
 
@@ -324,13 +380,20 @@
         myQueue = res.queue;
         saveMyQueue(myQueue);
         showMyQueueView();
-
-        // Play a short confirmation sound
         playNotificationSound();
       } else {
-        alert('ไม่สามารถรับคิวได้ กรุณาลองใหม่');
+        showToast('ไม่สามารถรับคิวได้ กรุณาลองใหม่');
       }
     });
+
+    // Timeout fallback — if server doesn't respond in 5s
+    setTimeout(() => {
+      if (btnJoin.disabled) {
+        btnJoin.disabled = false;
+        btnJoin.innerHTML = '🎫 รับคิว';
+        showToast('เชื่อมต่อช้า กรุณาลองใหม่');
+      }
+    }, 5000);
   });
 
   btnCancel.addEventListener('click', () => {
@@ -344,13 +407,27 @@
         personCount = 1;
         updatePersonCount();
       } else {
-        alert('ไม่สามารถยกเลิกคิวได้');
+        showToast('ไม่สามารถยกเลิกคิวได้');
       }
     });
   });
 
   btnDismissCalled.addEventListener('click', () => {
     hideCalledOverlay();
+  });
+
+  // ==================== Visibility Change ====================
+  // When user comes back to the tab, re-verify the queue
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && myQueue) {
+      socket.emit('queue:check', { queueId: myQueue.id }, (res) => {
+        if (!res || !res.exists) {
+          clearMyQueue();
+          showJoinView();
+          showToast('คิวของคุณหมดอายุแล้ว');
+        }
+      });
+    }
   });
 
   // ==================== Init ====================

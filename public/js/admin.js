@@ -56,6 +56,7 @@
   let isAuthenticated = false;
   let latestState = null;
   let timerInterval = null;
+  let dateInterval = null;
 
   // ==================== Auth ====================
   const AUTH_KEY = 'photoqueue_admin_auth';
@@ -73,15 +74,11 @@
   }
 
   function saveAuth() {
-    try {
-      sessionStorage.setItem(AUTH_KEY, 'true');
-    } catch (e) {}
+    try { sessionStorage.setItem(AUTH_KEY, 'true'); } catch (e) {}
   }
 
   function clearAuth() {
-    try {
-      sessionStorage.removeItem(AUTH_KEY);
-    } catch (e) {}
+    try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
     isAuthenticated = false;
   }
 
@@ -101,7 +98,6 @@
       }
     });
 
-    // Allow paste
     input.addEventListener('paste', (e) => {
       e.preventDefault();
       const paste = (e.clipboardData || window.clipboardData).getData('text').slice(0, 4);
@@ -140,10 +136,9 @@
         pinError.textContent = '❌ PIN ไม่ถูกต้อง กรุณาลองอีกครั้ง';
         pinDigits.forEach(d => { d.value = ''; });
         pinDigits[0].focus();
-        // Shake animation
         const card = pinScreen.querySelector('.pin-card');
         card.style.animation = 'none';
-        card.offsetHeight; // Force reflow
+        card.offsetHeight;
         card.style.animation = 'calledShake 0.3s ease-in-out';
       }
     } catch (err) {
@@ -154,11 +149,8 @@
     btnLogin.innerHTML = '🔓 เข้าสู่ระบบ';
   });
 
-  // Allow pressing Enter on PIN
   pinDigits[3].addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      btnLogin.click();
-    }
+    if (e.key === 'Enter') btnLogin.click();
   });
 
   btnLogout.addEventListener('click', () => {
@@ -168,24 +160,43 @@
     pinDigits.forEach(d => { d.value = ''; });
     pinError.textContent = '';
     pinDigits[0].focus();
+    if (dateInterval) clearInterval(dateInterval);
   });
 
   // ==================== Dashboard ====================
   function showDashboard() {
     pinScreen.style.display = 'none';
     adminDashboard.classList.remove('hidden');
-    updateDate();
+    updateDateFromServer();
     loadQR();
+
+    // Auto-update date every 30 seconds
+    if (dateInterval) clearInterval(dateInterval);
+    dateInterval = setInterval(updateDateFromServer, 30000);
   }
 
-  function updateDate() {
-    const now = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    adminDate.textContent = now.toLocaleDateString('th-TH', options);
+  function updateDateFromServer() {
+    // Use server date from latest state if available, otherwise use local
+    if (latestState && latestState.serverDate) {
+      // Parse server date and format in Thai
+      const parts = latestState.serverDate.split('-');
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      adminDate.textContent = d.toLocaleDateString('th-TH', options);
+    } else {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      adminDate.textContent = now.toLocaleDateString('th-TH', options);
+    }
   }
 
   // ==================== Socket.IO ====================
-  const socket = io({ reconnection: true, reconnectionDelay: 1000 });
+  const socket = io({
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 10000,
+  });
 
   socket.on('connect', () => {
     updateConnectionStatus(true);
@@ -202,9 +213,35 @@
     }
   });
 
+  socket.on('queue:dayReset', (data) => {
+    // Show notification that day has reset
+    if (isAuthenticated) {
+      showAdminToast('🔄 ระบบรีเซ็ตคิวสำหรับวันใหม่อัตโนมัติ');
+      updateDateFromServer();
+    }
+  });
+
   function updateConnectionStatus(connected) {
     connectionStatus.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
-    connectionText.textContent = connected ? 'เชื่อมต่อแล้ว' : 'ขาดการเชื่อมต่อ...';
+    connectionText.textContent = connected ? 'เชื่อมต่อแล้ว' : 'กำลังเชื่อมต่อ...';
+  }
+
+  function showAdminToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+      background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4);
+      color: #3b82f6; padding: 12px 24px; border-radius: 100px;
+      font-size: 0.9rem; font-weight: 600; z-index: 2000;
+      animation: slideUp 0.3s ease-out; backdrop-filter: blur(10px);
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s';
+      setTimeout(() => toast.remove(), 300);
+    }, 5000);
   }
 
   // ==================== Update Dashboard ====================
@@ -223,8 +260,6 @@
       noCurrentBanner.classList.add('hidden');
       adminCurrentNumber.textContent = '#' + state.currentQueue.number;
       adminCurrentInfo.textContent = `👥 ${state.currentQueue.groupSize} คน · ${state.currentQueue.totalMinutes} นาที`;
-
-      // Timer
       updateTimer(state.currentQueue);
     } else {
       currentBanner.classList.add('hidden');
@@ -241,6 +276,9 @@
     // Buttons state
     btnCallNext.disabled = state.totalWaiting === 0;
     btnComplete.disabled = !state.currentQueue;
+
+    // Update date from server
+    updateDateFromServer();
   }
 
   function updateTimer(currentQueue) {
@@ -283,15 +321,11 @@
     queueTableBody.innerHTML = state.waitingQueues.map((q) => `
       <tr>
         <td><span class="q-num">#${q.number}</span></td>
-        <td>
-          <span class="q-people">👥 ${q.groupSize} คน</span>
-        </td>
+        <td><span class="q-people">👥 ${q.groupSize} คน</span></td>
         <td class="q-time">${q.totalMinutes} นาที</td>
         <td class="q-time">~${q.estimatedMinutes} นาที</td>
         <td class="q-actions">
-          <button class="btn btn-danger btn-sm" onclick="cancelQueue('${q.id}', ${q.number})">
-            ❌
-          </button>
+          <button class="btn btn-danger btn-sm" onclick="cancelQueue('${q.id}', ${q.number})">❌</button>
         </td>
       </tr>
     `).join('');
@@ -305,7 +339,7 @@
       if (res && res.success) {
         playCallSound();
       } else {
-        if (res && res.message) alert(res.message);
+        if (res && res.message) showAdminToast(res.message);
       }
     });
   });
@@ -313,7 +347,7 @@
   btnComplete.addEventListener('click', () => {
     socket.emit('queue:complete', {}, (res) => {
       if (!res || !res.success) {
-        if (res && res.message) alert(res.message);
+        if (res && res.message) showAdminToast(res.message);
       }
     });
   });
@@ -329,18 +363,14 @@
   btnResetConfirm.addEventListener('click', () => {
     socket.emit('queue:reset', {}, (res) => {
       resetModal.classList.add('hidden');
-      if (res && res.success) {
-        // Reset complete
-      }
     });
   });
 
-  // Cancel individual queue (global for onclick)
   window.cancelQueue = function (queueId, number) {
     if (!confirm(`ยกเลิกคิว #${number} ใช่ไหม?`)) return;
     socket.emit('queue:cancel', { queueId }, (res) => {
       if (!res || !res.success) {
-        alert('ไม่สามารถยกเลิกคิวได้');
+        showAdminToast('ไม่สามารถยกเลิกคิวได้');
       }
     });
   };
