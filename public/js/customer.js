@@ -37,7 +37,7 @@
   const currentQueueDetails = $('currentQueueDetails');
   const statAhead = $('statAhead');
   const statTotal = $('statTotal');
-  const statDone = $('statDone');
+  const statTotalGuests = $('statTotalGuests');
   const queueListCustomer = $('queueListCustomer');
   const btnViewAllQueues = $('btnViewAllQueues'); // NEW
   const queueListModal = $('queueListModal'); // NEW
@@ -344,7 +344,8 @@
 
     // Stats
     statTotal.textContent = state.totalWaiting;
-    statDone.textContent = state.completedToday;
+    const totalGuests = state.waitingQueues ? state.waitingQueues.reduce((sum, q) => sum + parseInt(q.groupSize || 0), 0) : 0;
+    if (statTotalGuests) statTotalGuests.textContent = totalGuests;
 
     if (myIdx !== -1) {
       statAhead.textContent = myIdx;

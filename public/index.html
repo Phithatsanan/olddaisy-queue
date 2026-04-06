@@ -88,25 +88,9 @@
         <div id="currentQueueDetails" class="details"></div>
       </div>
 
-      <!-- Status Grid -->
-      <div class="status-grid mb-3">
-        <div class="glass-card stat-card">
-          <div id="statAhead" class="stat-value gradient-warm">0</div>
-          <div class="stat-label">Q's Ahead</div>
-        </div>
-        <div class="glass-card stat-card">
-          <div id="statTotal" class="stat-value gradient-cool">0</div>
-          <div class="stat-label">Total Q's</div>
-        </div>
-        <div class="glass-card stat-card">
-          <div id="statDone" class="stat-value gradient-success">0</div>
-          <div class="stat-label">Completed</div>
-        </div>
-      </div>
-
       <!-- Queue List Button -->
-      <button id="btnViewAllQueues" class="btn btn-outline" style="width: 100%; margin: 16px 0; background: var(--bg-glass);">
-        View Waiting List
+      <button id="btnViewAllQueues" class="btn btn-outline" style="width: 100%; margin-bottom: 24px; background: var(--bg-glass);">
+        View Waiting List & Stats
       </button>
 
       <!-- Cancel -->
@@ -150,8 +134,25 @@
 
   <!-- ==================== Custom Modal for Queue List ==================== -->
   <div id="queueListModal" class="called-overlay hidden" style="z-index: 997;">
-    <div class="called-card" style="max-height: 80vh; display: flex; flex-direction: column; width: 90%; max-width: 400px; padding: 24px;">
-      <h3 style="margin-bottom: 16px; text-align: center; color: var(--text-primary); font-size: 1.2rem;">Waiting List</h3>
+    <div class="called-card" style="max-height: 85vh; display: flex; flex-direction: column; width: 90%; max-width: 400px; padding: 24px;">
+      <h3 style="margin-bottom: 16px; text-align: center; color: var(--text-primary); font-size: 1.2rem;">Waiting System Stats</h3>
+      
+      <!-- Status Grid moved inside Modal -->
+      <div class="status-grid mb-3">
+        <div class="glass-card stat-card">
+          <div id="statAhead" class="stat-value gradient-warm">0</div>
+          <div class="stat-label">Q's Ahead</div>
+        </div>
+        <div class="glass-card stat-card">
+          <div id="statTotal" class="stat-value gradient-cool">0</div>
+          <div class="stat-label">Total Q's</div>
+        </div>
+        <div class="glass-card stat-card" style="padding: 12px 8px;">
+          <div id="statTotalGuests" class="stat-value gradient-success">0</div>
+          <div class="stat-label" style="font-size: 0.65rem;">Total Guests</div>
+        </div>
+      </div>
+
       <div id="queueListCustomer" class="queue-list-customer" style="flex: 1; overflow-y: auto; margin-bottom: 16px; padding-right: 8px;"></div>
       <button id="btnCloseQueueList" class="btn btn-secondary" style="width: 100%;">Close</button>
     </div>
