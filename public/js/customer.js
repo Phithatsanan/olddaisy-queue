@@ -62,7 +62,6 @@
   let isReconnecting = false;
   let reconnectDone = false; // Track whether reconnect flow has completed
   let hasSeenAlmostReadyPopup = false;
-  let notified10Min = false;
   let notified2Min = false;
   let notifiedCalled = false;
 
@@ -180,7 +179,13 @@
             name: res.queue.name || saved.name || '',
             totalMinutes: res.queue.totalMinutes,
             createdDate: res.queue.createdDate || saved.createdDate,
+            hasSeenAlmostReadyPopup: saved.hasSeenAlmostReadyPopup || false,
+            notified2Min: saved.notified2Min || false,
+            notifiedCalled: saved.notifiedCalled || false
           };
+          hasSeenAlmostReadyPopup = !!myQueue.hasSeenAlmostReadyPopup;
+          notified2Min = !!myQueue.notified2Min;
+          notifiedCalled = !!myQueue.notifiedCalled;
           saveMyQueue(myQueue);
 
           if (res.status === 'serving') {
@@ -248,6 +253,8 @@
       if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500, 200, 800]);
       if (!notifiedCalled) {
         notifiedCalled = true;
+        myQueue.notifiedCalled = true;
+        saveMyQueue(myQueue);
         sendSystemNotification('It is your turn!', `Please come to the storefront now. Queue #${data.queueNumber}`);
       }
     }
@@ -312,6 +319,8 @@
       if (window.navigator.vibrate) window.navigator.vibrate([500, 200, 500, 200, 800]);
       if (!notifiedCalled) {
         notifiedCalled = true;
+        myQueue.notifiedCalled = true;
+        saveMyQueue(myQueue);
         sendSystemNotification('It is your turn!', `Please come to the storefront now. Queue #${myQueue.number}`);
       }
     }
@@ -402,15 +411,6 @@
       } else {
         warningText.textContent = `~${est} min until your queue.`;
       }
-
-      if (est <= 10 && est > 2 && !notified10Min) {
-        if ('Notification' in window && Notification.permission === 'granted') {
-          sendSystemNotification('OLD DAISY CAFE', `Your queue is approaching. ~${est} mins left!`);
-          notified10Min = true;
-        } else if ('Notification' in window && Notification.permission === 'denied') {
-          notified10Min = true;
-        }
-      }
     } else {
       warningBox.classList.add('hidden');
     }
@@ -420,14 +420,16 @@
       if (!notified2Min && !(myIdx === 0 && !latestState.currentQueue)) {
         if ('Notification' in window && Notification.permission === 'granted') {
           sendSystemNotification('Almost Ready!', `Your queue is ~${est} mins away. Please prepare to enter!`);
-          notified2Min = true;
-        } else if ('Notification' in window && Notification.permission === 'denied') {
-          notified2Min = true;
         }
+        notified2Min = true;
+        myQueue.notified2Min = true;
+        saveMyQueue(myQueue);
       }
       
       if (!hasSeenAlmostReadyPopup && !(myIdx === 0 && !latestState.currentQueue)) {
         hasSeenAlmostReadyPopup = true;
+        myQueue.hasSeenAlmostReadyPopup = true;
+        saveMyQueue(myQueue);
         almostReadyOverlay.classList.remove('hidden');
         if (window.navigator.vibrate) window.navigator.vibrate([200, 100, 200]);
       }
@@ -529,7 +531,6 @@
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
     myQueue = null;
     hasSeenAlmostReadyPopup = false;
-    notified10Min = false;
     notified2Min = false;
     notifiedCalled = false;
     calledOverlay.classList.add('hidden');
@@ -696,12 +697,24 @@
       saveMyQueue({ id: sq });
     }
     myQueue = saved && saved.id === sq ? saved : { id: sq };
+    
+    // Restore logic flags early
+    hasSeenAlmostReadyPopup = !!myQueue.hasSeenAlmostReadyPopup;
+    notified2Min = !!myQueue.notified2Min;
+    notifiedCalled = !!myQueue.notifiedCalled;
+
     // Show loading state until reconnect completes
     showLoadingView();
   } else {
     const saved = loadMyQueue();
     if (saved && saved.id) {
       myQueue = saved;
+      
+      // Restore logic flags early
+      hasSeenAlmostReadyPopup = !!myQueue.hasSeenAlmostReadyPopup;
+      notified2Min = !!myQueue.notified2Min;
+      notifiedCalled = !!myQueue.notifiedCalled;
+
       // Show loading state until reconnect verifies our queue
       showLoadingView();
     } else {
