@@ -278,7 +278,14 @@
   }
 
   function renderQueueTable(state) {
-    waitingCount.textContent = state.totalWaiting;
+    // Update wait list
+    const waitingCount = document.getElementById('waitingCount');
+    const waitingGuestsAdmin = document.getElementById('waitingGuestsAdmin');
+    if (waitingCount) {
+      waitingCount.textContent = state.waitingQueues.length + ' Qs';
+      const totalGuests = state.waitingQueues.reduce((sum, q) => sum + parseInt(q.groupSize || 0), 0);
+      if (waitingGuestsAdmin) waitingGuestsAdmin.textContent = totalGuests + ' Guests';
+    }
     if (!state.waitingQueues || state.waitingQueues.length === 0) {
       queueTableWrapper.classList.add('hidden');
       emptyQueue.classList.remove('hidden');

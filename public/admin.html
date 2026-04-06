@@ -101,9 +101,10 @@
 
     <!-- Queue Table -->
     <section class="queue-table-section mb-3">
-      <h3>
+      <h3 style="display: flex; align-items: center; flex-wrap: wrap;">
         Waiting Queue
-        <span id="waitingCount" class="count">0</span>
+        <span id="waitingCount" class="count" style="margin-left: 8px;" title="Total Queues">0 Qs</span>
+        <span id="waitingGuestsAdmin" class="count" style="background: var(--gradient-success); margin-left: 8px;" title="Total Guests waiting">0 Guests</span>
       </h3>
 
       <div id="queueTableWrapper">
