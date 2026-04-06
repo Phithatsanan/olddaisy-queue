@@ -528,6 +528,8 @@
     notified10Min = false;
     notified2Min = false;
     notifiedCalled = false;
+    calledOverlay.classList.add('hidden');
+    almostReadyOverlay.classList.add('hidden');
     try { window.history.replaceState(null, '', window.location.pathname); } catch(e) {}
   }
 
@@ -613,7 +615,11 @@
   // Called overlay → Acknowledge → Go to serving view
   btnDismissCalled.addEventListener('click', () => {
     calledOverlay.classList.add('hidden');
-    showServingView();
+    if (myQueue) {
+      showServingView();
+    } else {
+      showJoinView();
+    }
   });
 
   // Almost Ready overlay → Dismiss
