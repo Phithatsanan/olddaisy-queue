@@ -259,7 +259,7 @@
       noCurrentBanner.classList.add('hidden');
       const nameD = state.currentQueue.name ? ` <span style="font-size:0.5em;color:var(--text-secondary);font-weight:normal">(${escapeHtml(state.currentQueue.name)})</span>` : '';
       adminCurrentNumber.innerHTML = '#' + state.currentQueue.number + nameD;
-      adminCurrentInfo.textContent = `${state.currentQueue.groupSize} ppl · ${state.currentQueue.totalMinutes} min`;
+      adminCurrentInfo.textContent = `${state.currentQueue.groupSize} Guests · ${state.currentQueue.totalMinutes} min`;
     } else {
       currentBanner.classList.add('hidden');
       noCurrentBanner.classList.remove('hidden');
@@ -291,7 +291,7 @@
       return `
       <tr>
         <td><span class="q-num">#${q.number}</span>${nameT}</td>
-        <td><span class="q-people">${q.groupSize} ppl</span></td>
+        <td><span class="q-people">${q.groupSize} Guests</span></td>
         <td class="q-time">${q.totalMinutes}m</td>
         <td class="q-time">~${q.estimatedMinutes}m</td>
         <td class="q-actions"><button class="btn btn-danger btn-sm" onclick="cancelQueue('${q.id}',${q.number})">X</button></td>

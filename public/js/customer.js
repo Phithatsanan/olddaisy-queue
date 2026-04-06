@@ -333,7 +333,7 @@
     // Current serving
     if (state.currentQueue) {
       currentQueueDisplay.textContent = state.currentQueue.number;
-      currentQueueDetails.textContent = `${state.currentQueue.groupSize} ppl · ${state.currentQueue.totalMinutes} min`;
+      currentQueueDetails.textContent = `${state.currentQueue.groupSize} Guests · ${state.currentQueue.totalMinutes} min`;
     } else {
       currentQueueDisplay.textContent = '—';
       currentQueueDetails.textContent = 'Not started';
@@ -460,7 +460,7 @@
       const isMine = myQueue && q.id === myQueue.id;
       return `<div class="queue-item-customer ${isMine ? 'is-mine' : ''}">
         <span class="q-number">#${q.number}</span>
-        <span class="q-people">${q.groupSize} ppl</span>
+        <span class="q-people">${q.groupSize} Guests</span>
         <span class="q-time">~${q.estimatedMinutes} min</span>
       </div>`;
     }).join('');
@@ -536,7 +536,7 @@
     if (personCount > 1) { personCount--; updatePersonCount(); }
   });
   btnPlus.addEventListener('click', () => {
-    if (personCount < 20) { personCount++; updatePersonCount(); }
+    if (personCount < 10) { personCount++; updatePersonCount(); }
   });
 
   function updatePersonCount() {

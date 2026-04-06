@@ -220,6 +220,14 @@
   font-size: 0.8rem;
 }
 
+#queueTableWrapper {
+  max-height: 400px;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  /* Optional: visual boundary for scrolling */
+  border-bottom: 1px solid var(--border-glass);
+}
+
 .queue-table {
   width: 100%;
   border-collapse: separate;
@@ -234,6 +242,10 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  z-index: 10;
 }
 
 .queue-table td {
