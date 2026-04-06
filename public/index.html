@@ -21,7 +21,7 @@
     <header class="customer-header">
       <img src="/img/logo.jpg" alt="Logo" class="logo-img" />
       <h1>OLD DAISY CAFE</h1>
-      <p class="subtitle">Photo Queue System</p>
+      <p class="subtitle">Photo Queue</p>
     </header>
 
     <!-- ==================== VIEW 1: JOIN ==================== -->
@@ -35,7 +35,7 @@
           <span id="personCount" class="person-count">1</span>
           <button id="btnPlus" class="btn btn-icon" aria-label="Increase">+</button>
         </div>
-        <p class="person-label">Number of people</p>
+        <p class="person-label">Number of Guests</p>
 
 
         <div class="input-group" style="margin-top: 16px; margin-bottom: 24px;">
@@ -89,7 +89,7 @@
       </div>
 
       <!-- Queue List Button -->
-      <button id="btnViewAllQueues" class="btn btn-outline" style="width: 100%; margin-bottom: 24px; background: var(--bg-glass);">
+      <button id="btnViewAllQueues" class="btn btn-secondary" style="width: 100%; margin-bottom: 24px; background: var(--bg-glass);">
         View Waiting List & Stats
       </button>
 
@@ -135,7 +135,7 @@
   <!-- ==================== Custom Modal for Queue List ==================== -->
   <div id="queueListModal" class="called-overlay hidden" style="z-index: 997;">
     <div class="called-card" style="max-height: 85vh; display: flex; flex-direction: column; width: 90%; max-width: 400px; padding: 24px;">
-      <h3 style="margin-bottom: 16px; text-align: center; color: var(--text-primary); font-size: 1.2rem;">Waiting System Stats</h3>
+      <h3 style="margin-bottom: 16px; text-align: center; color: var(--text-primary); font-size: 1.2rem;">Waiting List Stats</h3>
       
       <!-- Status Grid moved inside Modal -->
       <div class="status-grid mb-3">
