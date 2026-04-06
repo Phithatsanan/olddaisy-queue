@@ -39,6 +39,9 @@
   const statTotal = $('statTotal');
   const statDone = $('statDone');
   const queueListCustomer = $('queueListCustomer');
+  const btnViewAllQueues = $('btnViewAllQueues'); // NEW
+  const queueListModal = $('queueListModal'); // NEW
+  const btnCloseQueueList = $('btnCloseQueueList'); // NEW
   const btnCancel = $('btnCancel');
 
   // Serving
@@ -543,6 +546,18 @@
 
   function updatePersonCount() {
     personCountEl.textContent = personCount;
+  }
+
+  // Queue List Modal
+  if (btnViewAllQueues) {
+    btnViewAllQueues.addEventListener('click', () => {
+      if (queueListModal) queueListModal.classList.remove('hidden');
+    });
+  }
+  if (btnCloseQueueList) {
+    btnCloseQueueList.addEventListener('click', () => {
+      if (queueListModal) queueListModal.classList.add('hidden');
+    });
   }
 
   btnJoin.addEventListener('click', () => {

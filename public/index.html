@@ -104,11 +104,10 @@
         </div>
       </div>
 
-      <!-- Queue List -->
-      <section class="queue-list-section mb-3">
-        <h3>Queue List</h3>
-        <div id="queueListCustomer" class="queue-list-customer"></div>
-      </section>
+      <!-- Queue List Button -->
+      <button id="btnViewAllQueues" class="btn btn-outline" style="width: 100%; margin: 16px 0; background: var(--bg-glass);">
+        View Waiting List
+      </button>
 
       <!-- Cancel -->
       <div class="cancel-section">
@@ -149,7 +148,16 @@
     </div>
   </div>
 
-  <!-- ==================== CALLED OVERLAY ==================== -->
+  <!-- ==================== Custom Modal for Queue List ==================== -->
+  <div id="queueListModal" class="called-overlay hidden" style="z-index: 997;">
+    <div class="called-card" style="max-height: 80vh; display: flex; flex-direction: column; width: 90%; max-width: 400px; padding: 24px;">
+      <h3 style="margin-bottom: 16px; text-align: center; color: var(--text-primary); font-size: 1.2rem;">Waiting List</h3>
+      <div id="queueListCustomer" class="queue-list-customer" style="flex: 1; overflow-y: auto; margin-bottom: 16px; padding-right: 8px;"></div>
+      <button id="btnCloseQueueList" class="btn btn-secondary" style="width: 100%;">Close</button>
+    </div>
+  </div>
+
+  <!-- ==================== OVERLAYS ==================== -->
   <div id="calledOverlay" class="called-overlay hidden">
     <div class="called-card">
       <img src="/img/logo.jpg" alt="Logo" class="overlay-logo" />
